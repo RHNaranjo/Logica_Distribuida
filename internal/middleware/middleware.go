@@ -25,6 +25,6 @@ func ConLog(nodo string, siguiente http.Handler) http.Handler {
 		siguiente.ServeHTTP(w, r)
 
 		// Odio escribir estos números así AJAJA
-		log.Printf("[%s] %s %s (%S)", nodo, r.Method, r.URL.Path, time.Since(inicio))
+		log.Printf("[%s] %s %s (%s)", nodo, r.Method, r.URL.Path, time.Since(inicio))
 	})
 }
