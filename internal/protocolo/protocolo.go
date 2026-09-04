@@ -18,7 +18,7 @@ type ConfiguracionMundo struct {
 
 // Respuesta de GET /salud
 type Salud struct {
-	MundoID     int  `json:"mundo_id`
+	MundoID     int  `json:"mundo_id"`
 	Configurado bool `json:"configurado"`
 }
 

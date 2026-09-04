@@ -27,7 +27,7 @@ func DSN() (string, error) {
 
 	// Sprintf sólo admite valores alfanumericos, por lo que debería validarse eso en la contraseña (pendiente para otro día)
 	dsn := fmt.Sprintf(
-		"postgres://%s : %s @ %s : %s / %s?sslmode=disable",
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		usuario, contrasena, host, puerto, nombre,
 	)
 
