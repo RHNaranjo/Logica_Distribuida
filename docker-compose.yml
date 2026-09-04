@@ -5,7 +5,7 @@ x-postgres-comun: &postgres-comun
   image: postgres:16-alpine
   restart: unless-stopped 
   healthcheck:
-    test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+    test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d $$POSTGRES_DB"]
     interval: 5s
     timeout: 5s
     retries: 10 
@@ -16,7 +16,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: coordiandor 
+      POSTGRES_DB: coordinador
     volumes:
       - coordinador-datos:/var/lib/postgresql/data 
       - ./db/init_coordinador.sql:/docker-entrypoint-initdb.d/init.sql:ro 
