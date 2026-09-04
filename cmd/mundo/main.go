@@ -1,19 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
+	"mundos_posibles/internal/basededatos"
 	"mundos_posibles/internal/config"
 	"mundos_posibles/internal/middleware"
+	"mundos_posibles/internal/mundo"
 )
-
-type respuestaSalud struct {
-	MundoID     int  `json:"mundo_id"` // Se llama mundo_id el campo (para que no sea 0/1)
-	Configurado bool `json:"configurado"`
-}
 
 func main() {
 	// Crear el mundo posible
@@ -22,26 +19,25 @@ func main() {
 		log.Fatalf("[ERROR] Configuración inválida: %v", err)
 	}
 
+	dsn, err := config.DSN()
+	if err != nil {
+		log.Fatalf("[ERROR] Configuración de base de datos inválida: %v", err)
+	}
+
+	db, err := basededatos.Abrir(dsn, 10, 2*time.Second)
+	if err != nil {
+		log.Fatalf("[ERROR] No se pudo conectar a Postgres: %v", err)
+	}
+	defer db.Close()
+
 	nombre := fmt.Sprintf("mundo%d", id)
-	mux := http.NewServeMux()
+	log.Printf("[INFO] %s conectado a su base de datos", nombre)
 
-	mux.HandleFunc("GET /salud", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	repo := mundo.NuevoRepo(db)
+	ctrl := mundo.NuevoControlador(repo, id)
 
-		respuesta := respuestaSalud{
-			MundoID:     id,
-			Configurado: false,
-		}
+	handler := middleware.ConLog(nombre, middleware.ConNodo(nombre, ctrl.Rutas()))
 
-		if err := json.NewEncoder(w).Encode(respuesta); err != nil {
-			log.Printf("[ERROR] No se pudo escribir la respuesta de salud: %v", err)
-		}
-	})
-
-	// Obtener el Handler
-	handler := middleware.ConLog(nombre, middleware.ConNodo(nombre, mux))
-
-	// Mostrar el nombre del backend y el puerto
 	puerto := config.PuertoHTTP()
 	log.Printf("[INFO] %s escuchando en %s", nombre, puerto)
 
