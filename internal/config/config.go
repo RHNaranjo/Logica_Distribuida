@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Cada nodo apunta a su base de datos. DSN arma conexión a Postgres de su propio nodo
@@ -67,4 +69,43 @@ func getEnv(clave, respaldo string) string {
 	}
 
 	return respaldo
+}
+
+// Devolver direcciones de los nodo-mundo
+// urls[0] es el mundo0, urls[1] es el mundo1
+func MundosURLs() ([]string, error) {
+	valor := os.Getenv("MUNDOS_URLS")
+
+	if valor == "" {
+		return nil, fmt.Errorf("[ERROR] Falta la variable de entorno MUNDOS_URLS")
+	}
+
+	partes := strings.Split(valor, ",")
+
+	// Crear el espacio en memoria para los URLs
+	urls := make([]string, 0, len(partes))
+
+	for _, parte := range partes {
+		parte = strings.TrimSpace(parte)
+		if parte == "" {
+			continue
+		}
+
+		// Quitar la diagnoal
+		// Objetivo: http://mundo0:8080//configurar
+		parte = strings.TrimSuffix(parte, "/")
+
+		u, err := url.Parse(parte)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return nil, fmt.Errorf("[ERROR] La dirección %q no es válida (¿le falta el http://?)", parte)
+		}
+
+		urls = append(urls, parte)
+	}
+
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("[ERROR] MUNDOS_URLS no contiene ninguna dirección")
+	}
+
+	return urls, nil
 }
