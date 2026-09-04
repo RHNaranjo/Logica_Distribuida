@@ -1,0 +1,167 @@
+name: mundos_posibles 
+
+# '&' define un ancla y '<<: *' inserta 
+x-postgres-comun: &postgres-comun
+  image: postgres:16-alpine
+  restart: unless-stopped 
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+    interval: 5s
+    timeout: 5s
+    retries: 10 
+
+services:
+  coordinador-db:
+    <<: *postgres-comun 
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: coordiandor 
+    volumes:
+      - coordinador-datos:/var/lib/postgresql/data 
+      - ./db/init_coordinador.sql:/docker-entrypoint-initdb.d/init.sql:ro 
+
+  coordinador:
+    build: .
+    image: mundos_posibles:local
+    command: ["/app/coordinador"]
+    restart: unless-stopped
+    environment:
+      PUERTO: "8080"
+      DB_HOST: coordinador-db 
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: coordinador
+      MUNDOS_URLS: "http://mundo0:8080,http://mundo1:8080,http://mundo2:8080,http://mundo3:8080"
+    depends_on:
+      coordinador-db:
+        condition: service_healthy 
+    ports:
+      - "8080:8080"
+
+
+  mundo0-db:
+    <<: *postgres-comun 
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: mundo0
+    volumes:
+      - mundo0-datos:/var/lib/postgresql/data
+      - ./db/init_mundo.sql:/docker-entrypoint-initdb.d/init.sql:ro 
+
+  mundo0:
+    build: .
+    image: mundos_posibles:local
+    command: ["/app/mundo"]
+    restart: unless-stopped
+    environment:
+      MUNDO_ID: "0"
+      PUERTO: "8080"
+      DB_HOST: mundo0-db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: mundo0
+    depends_on:
+      mundo0-db:
+        condition: service_healthy
+    ports:
+      - "8081:8080"   # solo para depurar con curl; en VMs no hace falta
+
+  mundo1-db:
+    <<: *postgres-comun
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: mundo1
+    volumes:
+      - mundo1-datos:/var/lib/postgresql/data
+      - ./db/init_mundo.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  mundo1:
+    build: .
+    image: mundos_posibles:local
+    command: ["/app/mundo"]
+    restart: unless-stopped
+    environment:
+      MUNDO_ID: "1"
+      PUERTO: "8080"
+      DB_HOST: mundo1-db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: mundo1
+    depends_on:
+      mundo1-db:
+        condition: service_healthy
+    ports:
+      - "8082:8080"
+
+  mundo2-db:
+    <<: *postgres-comun
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: mundo2
+    volumes:
+      - mundo2-datos:/var/lib/postgresql/data
+      - ./db/init_mundo.sql:/docker-entrypoint-initdb.d/init.sql:ro 
+
+  mundo2:
+    build: .
+    image: mundos_posibles:local
+    command: ["/app/mundo"]
+    restart: unless-stopped
+    environment:
+      MUNDO_ID: "2"
+      PUERTO: "8080"
+      DB_HOST: mundo2-db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: mundo2
+    depends_on:
+      mundo2-db:
+        condition: service_healthy
+    ports:
+      - "8083:8080"
+
+  mundo3-db:
+    <<: *postgres-comun
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: mundo3
+    volumes:
+      - mundo3-datos:/var/lib/postgresql/data
+      - ./db/init_mundo.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  mundo3:
+    build: .
+    image: mundos_posibles:local
+    command: ["/app/mundo"]
+    restart: unless-stopped
+    environment:
+      MUNDO_ID: "3"
+      PUERTO: "8080"
+      DB_HOST: mundo3-db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: mundo3
+    depends_on:
+      mundo3-db:
+        condition: service_healthy
+    ports:
+      - "8084:8080"
+
+volumes:
+  coordinador-datos:
+  mundo0-datos:
+  mundo1-datos:
+  mundo2-datos:
+  mundo3-datos:
+
+
