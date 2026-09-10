@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"mundos_posibles/internal/protocolo"
+	"logica/internal/protocolo"
 )
 
 // Cuando se pide el estado de un mundo al que el coordinador no le ha mandado nada

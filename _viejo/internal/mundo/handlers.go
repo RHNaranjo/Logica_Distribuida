@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"mundos_posibles/internal/protocolo"
+	"logica/internal/protocolo"
 )
 
 const tiempoLimite = 5 * time.Second

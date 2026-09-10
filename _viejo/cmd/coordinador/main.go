@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"mundos_posibles/internal/config"
-	"mundos_posibles/internal/middleware"
+	"logica/internal/config"
+	"logica/internal/middleware"
 )
 
 func main() {

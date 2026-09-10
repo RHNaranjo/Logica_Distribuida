@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"mundos_posibles/internal/basededatos"
-	"mundos_posibles/internal/config"
-	"mundos_posibles/internal/middleware"
-	"mundos_posibles/internal/mundo"
+	"logica/internal/basededatos"
+	"logica/internal/config"
+	"logica/internal/middleware"
+	"logica/internal/mundo"
 )
 
 func main() {

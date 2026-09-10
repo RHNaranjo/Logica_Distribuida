@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -108,4 +109,42 @@ func MundosURLs() ([]string, error) {
 	}
 
 	return urls, nil
+}
+
+// Determinar cuántas instancias levanta el proceso
+// Cada una es una gorutina con su propio HTTP y puerto
+func NumInstancias() int {
+	return getEnvInt("INSTANCIAS", 3)
+}
+
+// Puerto de la primera instancia; las demás instancias se van sumando
+func PuertoBase(respaldo int) int {
+	return getEnvInt("PUERTO_BASE", respaldo)
+}
+
+// Nombre con el que las instancias se anuncian ante el LB
+func HostAnunciado(respaldo string) string {
+	return getEnv("HOST_ANUNCIO", respaldo)
+}
+
+// Dirección del POST /registrar
+func URLRegistro() string {
+	return os.Getenv("REGISTRO_URL")
+}
+
+// Convertir getEnv pero en entero
+func getEnvInt(clave string, respaldo int) int {
+	valor := os.Getenv(clave)
+
+	if valor == "" {
+		return respaldo
+	}
+
+	n, err := strconv.Atoi(valor)
+	if err != nil || n <= 0 {
+		log.Printf("[AVISO] %s=%q no es un entero positivo; se usa %d", clave, valor, respaldo)
+		return respaldo
+	}
+
+	return n
 }

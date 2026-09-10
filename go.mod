@@ -1,4 +1,4 @@
-module mundos_posibles
+module logica
 
 go 1.26.4
 
