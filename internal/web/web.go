@@ -16,7 +16,7 @@ func JSON(w http.ResponseWriter, codigo int, datos any) {
 	w.WriteHeader(codigo)
 
 	if err := json.NewEncoder(w).Encode(datos); err != nil {
-		log.Printf("[ERROR] No se pudo escribir la respuesta: %w", err)
+		log.Printf("[ERROR] No se pudo escribir la respuesta: %v", err)
 	}
 }
 
