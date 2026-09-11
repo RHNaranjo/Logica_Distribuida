@@ -33,7 +33,7 @@ func (c *Controlador) Rutas() *http.ServeMux {
 	return mux
 }
 
-// Confirmar que el balanceador está vivo
+// Confirmar que el loadbalancer está vivo
 func (c *Controlador) Salud(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, http.StatusOK, map[string]any{
 		"servicio": "loadbalancer",

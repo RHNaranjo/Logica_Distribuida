@@ -6,7 +6,7 @@ import (
 )
 
 // Revisar cada instancia cada X tiempo
-func ViligarSalud(reg *Registro, cada time.Duration) {
+func VigilarSalud(reg *Registro, cada time.Duration) {
 	cliente := &http.Client{Timeout: 2 * time.Second}
 
 	ticker := time.NewTicker(cada)

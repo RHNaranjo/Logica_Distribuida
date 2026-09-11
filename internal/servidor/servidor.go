@@ -19,7 +19,7 @@ type Opciones struct {
 	URLRegistro   string
 }
 
-// Anuncio que se envía al LB por instancia
+// Anuncio que se envía al loadbalancer por instancia
 type Anuncio struct {
 	Modulo    string `json:"modulo"`
 	Instancia string `json:"instancia"`
@@ -62,7 +62,7 @@ func Arrancar(op Opciones, rutas http.Handler) error {
 	return <-errores
 }
 
-// Avisa al balanceador que la instancia existe
+// Avisa al loadbalancer que la instancia existe
 func registrar(urlRegistro string, a Anuncio) {
 	if urlRegistro == "" {
 		log.Printf("[AVISO] %s no se registra: falta REGISTRO_URL", a.Instancia)
@@ -75,7 +75,7 @@ func registrar(urlRegistro string, a Anuncio) {
 		return
 	}
 
-	// Timeout para que no se rompa si el balanceador acepta la conexión y nunca contesta
+	// Timeout para que no se rompa si el loadbalancer acepta la conexión y nunca contesta
 	cliente := &http.Client{Timeout: 3 * time.Second}
 
 	for intento := 1; intento <= 10; intento++ {
@@ -90,12 +90,12 @@ func registrar(urlRegistro string, a Anuncio) {
 				return
 			}
 
-			err = fmt.Errorf("El balanceador respondió: %d", codigo)
+			err = fmt.Errorf("El loadbalancer respondió: %d", codigo)
 		}
 
 		log.Printf("[AVISO] Intento %d/10 de registrar %s: %v", intento, a.Instancia, err)
 		time.Sleep(2 * time.Second)
 	}
 
-	log.Printf("[ERROR] %s no pudo registrarse; el balanceador no la verá", a.Instancia)
+	log.Printf("[ERROR] %s no pudo registrarse; el loadbalancer no la verá", a.Instancia)
 }
