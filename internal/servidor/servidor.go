@@ -20,7 +20,7 @@ type Opciones struct {
 }
 
 // Anuncio que se envía al LB por instancia
-type anuncio struct {
+type Anuncio struct {
 	Modulo    string `json:"modulo"`
 	Instancia string `json:"instancia"`
 	URL       string `json:"url"`
@@ -51,7 +51,7 @@ func Arrancar(op Opciones, rutas http.Handler) error {
 			errores <- fmt.Errorf("la instancia %s se detuvo: %w", nombre, srv.ListenAndServe())
 		}()
 
-		go registrar(op.URLRegistro, anuncio{
+		go registrar(op.URLRegistro, Anuncio{
 			Modulo:    op.Modulo,
 			Instancia: nombre,
 			URL:       url,
@@ -63,7 +63,7 @@ func Arrancar(op Opciones, rutas http.Handler) error {
 }
 
 // Avisa al balanceador que la instancia existe
-func registrar(urlRegistro string, a anuncio) {
+func registrar(urlRegistro string, a Anuncio) {
 	if urlRegistro == "" {
 		log.Printf("[AVISO] %s no se registra: falta REGISTRO_URL", a.Instancia)
 		return

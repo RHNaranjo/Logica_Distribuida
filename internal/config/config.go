@@ -59,8 +59,8 @@ func MundoID() (int, error) {
 }
 
 // Obtener el puerto en el que el proceso escucha
-func PuertoHTTP() string {
-	return ":" + getEnv("PUERTO", "8080")
+func PuertoHTTP(respaldo string) string {
+	return ":" + getEnv("PUERTO", respaldo)
 }
 
 // Leer la variable de entorno y regresar respaldo si no se encuentra
