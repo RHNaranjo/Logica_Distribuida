@@ -33,6 +33,16 @@ func NuevoControlador(destino *url.URL) *Controlador {
 	return &Controlador{proxy: proxy}
 }
 
+func (c *Controlador) Rutas() *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /salud", c.Salud)
+	mux.HandleFunc("GET /api/estado", c.Reenviar)
+	mux.HandleFunc("/api/{modulo}/{ruta...}", c.Reenviar)
+
+	return mux
+}
+
 // Obtener la salud desde el middleware
 func (c *Controlador) Salud(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, http.StatusOK, map[string]any{
