@@ -148,3 +148,8 @@ func getEnvInt(clave string, respaldo int) int {
 
 	return n
 }
+
+// Dirección del LB al que el middleware envía todo
+func URLLoadBalancer(respaldo string) string {
+	return getEnv("LOADBALANCER_URL", respaldo) // Después dentro del Docker
+}
