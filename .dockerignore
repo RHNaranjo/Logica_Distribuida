@@ -1,4 +1,7 @@
-.git 
-.env 
-.gitignore 
-.dockerignore 
+.git
+.env
+.gitignore
+.dockerignore
+bin/
+frontend/node_modules/
+frontend/dist/

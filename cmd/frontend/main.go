@@ -11,7 +11,7 @@ import (
 
 func main() {
 	directorio := config.DirectorioWeb("./frontend/dist")
-	publico := config.MiddlewarePublico("http://")
+	publico := config.MiddlewarePublico("http://localhost:8080")
 
 	mux := http.NewServeMux()
 
