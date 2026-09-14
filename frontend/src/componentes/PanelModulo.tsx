@@ -48,12 +48,12 @@ export function PanelModulo({ modulo }: { modulo: Modulo }) {
   return (
     <section className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <p classNae="mb-4 text-sm text-slate-600">{modulo.descripcion}</p>
+        <p className="mb-4 text-sm text-slate-600">{modulo.descripcion}</p>
 
         <div className="space-y-3">
           {modulo.campos.map((campo) => (
             <label key={campo.nombre} className="block">
-              <span className="mb-1 black text-xs font-semibold text-slate-700">
+              <span className="mb-1 block text-xs font-semibold text-slate-700">
                 {campo.etiqueta}
               </span>
 
@@ -62,19 +62,19 @@ export function PanelModulo({ modulo }: { modulo: Modulo }) {
                   rows={5}
                   className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-sm focus:border-slate-500 focus:outline-none"
                   value={valores[campo.nombre]}
-                  onChance={(e) => setValores({ ...valores, [campo.nombre]: e.target.value })}
+                  onChange={(e) => setValores({ ...valores, [campo.nombre]: e.target.value })}
                 />
               ) : (
                 <input 
                   type={campo.tipo === "numero" ? "number" : "text"}
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-sm focus:border-slate-500 focus-outline-none"
+                  className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-sm focus:border-slate-500 focus:outline-none"
                   value={valores[campo.nombre]}
                   onChange={(e) => setValores({ ...valores, [campo.nombre]: e.target.value })}
                 />
               )}
 
               {campo.ayuda && (
-                <span classsName="mt-1 block text-xs text-slate-500">{campo.ayuda}</span>
+                <span className="mt-1 block text-xs text-slate-500">{campo.ayuda}</span>
               )}
             </label>
           ))}
@@ -103,10 +103,10 @@ export function PanelModulo({ modulo }: { modulo: Modulo }) {
         {respuesta && (
           <>
             <dl className="mb-3 grid grid-cols-2 gap-2 text-xs">
-              <Dato etiqueta="Codigo" valor={String(respuesta.estado)} />
+              <Dato etiqueta="Código" valor={String(respuesta.estado)} />
               <Dato etiqueta="Tiempo" valor={`${respuesta.ms} ms`} />
               <Dato etiqueta="Instancia" valor={respuesta.instancia ?? "-"} />
-              <Dato etiqueta="Peticion" valor={respuesta.peticion ?? "-"} />
+              <Dato etiqueta="Petición" valor={respuesta.peticion ?? "-"} />
             </dl>
 
             <p className="mb-3 flex flex-wrap items-center gap-1 text-xs">

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { pedir, type Estado } from "../api";
 
 export function PanelEstado() {
-  const [estadp, setEstado] = useState<Estado | null> (null);
+  const [estado, setEstado] = useState<Estado | null>(null);
   const [error, setError] = useState<string | null> (null);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function PanelEstado() {
     .flatMap(([, lista]) => lista).length;
 
   return (
-    <section cassName="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold tracking-wide text-slate-700 uppercase">
           Estado del sistema
@@ -57,7 +57,7 @@ export function PanelEstado() {
       </div>
 
       {error && (
-        <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-sm text-red-700">
+        <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}

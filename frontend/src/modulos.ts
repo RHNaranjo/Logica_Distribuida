@@ -1,7 +1,7 @@
 export type Campo = {
   nombre: string;
   etiqueta: string;
-  tipo: "text" | "area" | "numero";
+  tipo: "texto" | "area" | "numero";
   inicial: string;
   ayuda?: string;
 };
@@ -29,7 +29,7 @@ function lineas(texto: string): string[] {
 function parsearPaso(linea: string) {
   const partes = linea.split("|").map((parte) => parte.trim());
 
-  const paso: { formula: string; regla: string; referencias =: number[] } = {
+  const paso: { formula: string; regla: string; referencias?: number[] } = {
     formula: partes[0] ?? "",
     regla: (partes[1] ?? "").toUpperCase(),
   };
@@ -44,7 +44,7 @@ function parsearPaso(linea: string) {
   return paso;
 }
 
-exponrt const modulos: Modulo[] = [
+export const modulos: Modulo[] = [
   {
     id: "tablas",
     nombre: "Tablas de verdad",
@@ -63,7 +63,7 @@ exponrt const modulos: Modulo[] = [
   {
     id: "mundos",
     nombre: "Mundos posibles",
-    descripcion: "Evalúa una fórmula proposicional a partir de relaciones entre mundos.",
+    descripcion: "Evalúa una fórmula modal sobre un modelo de Kripke desde un mundo dado.",
     campos: [
       {
         nombre: "num_mundos", 
@@ -129,7 +129,7 @@ exponrt const modulos: Modulo[] = [
         nombre: "pasos",
         etiqueta: "Pasos",
         tipo: "area",
-        inicial: "p -> q | PREMISA\nq -> r | PREMISA\np | PREMISA\nq | MP | 1,3\nr | RM | 2,4",
+        inicial: "p -> q | PREMISA\nq -> r | PREMISA\np | PREMISA\nq | MP | 1,3\nr | MP | 2,4",
         ayuda: "formula | REGLA | referencias (las referencias comienzan en el 1)",
       },
     ],

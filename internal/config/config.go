@@ -153,3 +153,13 @@ func getEnvInt(clave string, respaldo int) int {
 func URLLoadBalancer(respaldo string) string {
 	return getEnv("LOADBALANCER_URL", respaldo) // Después dentro del Docker
 }
+
+// Carpeta con el frontend que sirve el contenedor
+func DirectorioWeb(respaldo string) string {
+	return getEnv("DIRECTORIO_WEB", respaldo)
+}
+
+// Dirección del middleware como la ve el navegador (no interna)
+func MiddlewarePublico(respaldo string) string {
+	return getEnv("MIDDLEWARE_PUBLICO", respaldo)
+}
