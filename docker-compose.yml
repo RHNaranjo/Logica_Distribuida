@@ -12,8 +12,16 @@ x-modulo: &modulo
   environment: &modulo-env
     INSTANCIAS: "3"
     REGISTRO_URL: http://loadbalancer:8081/registrar
+    DB_HOST: postgres 
+    DB_PORT: "5432"
+    DB_USER: ${DB_USER}
+    DB_PASSWORD: ${DB_PASSWORD}
+    DB_NAME: logica 
   depends_on:
-    - loadbalancer
+    loadbalancer:
+      condition: service_started 
+    postgres:
+      condition: service_healthy 
 
 services:
   # Base de datos única
@@ -31,6 +39,7 @@ services:
       retries: 10
     volumes:
       - postgres-datos:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro 
     ports:
       - "5432:5432"
 
