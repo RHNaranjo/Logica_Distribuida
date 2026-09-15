@@ -57,6 +57,7 @@ func (r *Repo) Guardar(ctx context.Context, reg Registro) error {
 
 // Devuelve últimos registros de un nodo
 func (r *Repo) Listar(ctx context.Context, modulo string, limite int) ([]Registro, error) {
+	// El id DESC hace que si se resuelven al mismo tiempo, se haga desempate por el id
 	const consulta = `
 		SELECT id, modulo, instancia, entrada, resultado, error, creado_en 
 		FROM historial 
