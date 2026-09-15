@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS historial (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   modulo TEXT NOT NULL,
-  instancia, TEXT NOT NULL,
+  instancia TEXT NOT NULL,
   entrada JSONB NOT NULL,
   resultado JSONB,
   error TEXT,

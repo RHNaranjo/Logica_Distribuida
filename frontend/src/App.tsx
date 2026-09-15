@@ -13,7 +13,8 @@ export default function App() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-5xl px-6 py-4">
           <h1 className="text-lg font-semibold">Lógica Distribuida</h1>
-          <p className="text-sm text-slate-500">Tres servicios replicados detrás de un loadbalancer y un middleware</p>
+          <p className="text-sm text-slate-500">Proyecto primera entrega!!!</p>
+          <p className="text-sm text-slate-500">1 middleware, 1 LB y 3 instancias por cada backend (3)</p>
         </div>
       </header>
 

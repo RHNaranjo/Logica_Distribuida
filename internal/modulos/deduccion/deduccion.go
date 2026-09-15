@@ -10,5 +10,5 @@ import (
 const Nombre = "deduccion"
 
 func Resolver(entrada json.RawMessage) (any, error) {
-	return nil, fmt.Errorf("Deducción natural para después", modulos.ErrNoImplementado)
+	return nil, fmt.Errorf("deducción natural: %w", modulos.ErrNoImplementado)
 }

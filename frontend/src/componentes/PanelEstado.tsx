@@ -46,7 +46,7 @@ export function PanelEstado() {
     .flatMap(([, lista]) => lista).length;
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-lg border border-black bg-white p-4">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold tracking-wide text-slate-700 uppercase">
           Estado del sistema
@@ -74,7 +74,8 @@ export function PanelEstado() {
             <ul className="space-y-1">
               {instancias.map((inst) => (
                 <li key={inst.instancia} className="flex items-center gap-2 text-xs">
-                  <span 
+                  {/* Circulito verde de salud de instancia */}
+                  <span
                     className={`inline-block h-2 w-2 shrink-0 rounded-full ${inst.sana ? "bg-emerald-500" : "bg-red-500"}`}
                     title={inst.sana ? "sana" : "no responde"}
                   />

@@ -47,7 +47,7 @@ export function PanelModulo({ modulo }: { modulo: Modulo }) {
 
   return (
     <section className="grid gap-4 lg:grid-cols-2">
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-lg border border-black bg-white p-4">
         <p className="mb-4 text-sm text-slate-600">{modulo.descripcion}</p>
 
         <div className="space-y-3">
@@ -89,7 +89,7 @@ export function PanelModulo({ modulo }: { modulo: Modulo }) {
         </button>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-lg border border-black bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-700 uppercase">Respuesta</h2>
 
         {fallo && (

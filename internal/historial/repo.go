@@ -14,7 +14,7 @@ type Registro struct {
 	Modulo    string          `json:"modulo"`
 	Instancia string          `json:"instancia"`
 	Entrada   json.RawMessage `json:"entrada"`
-	Resultado json.RawMessage `json:"resultado.omitempty"`
+	Resultado json.RawMessage `json:"resultado,omitempty"`
 	Error     string          `json:"error,omitempty"`
 	CreadoEn  time.Time       `json:"creado_en"`
 }

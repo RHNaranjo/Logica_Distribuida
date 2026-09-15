@@ -33,7 +33,8 @@ func main() {
 		Modulo:        tablas.Nombre,
 		Instancias:    config.NumInstancias(),
 		PuertoBase:    config.PuertoBase(puertoPorOmision),
-		HostAnunciado: config.URLRegistro(),
+		HostAnunciado: config.HostAnunciado("localhost"),
+		URLRegistro:   config.URLRegistro(),
 	}
 
 	repo := historial.NuevoRepo(db)

@@ -11,5 +11,5 @@ const Nombre = "tablas"
 
 // Recibir el JSON, después será tablas de Verdad
 func Resolver(entrada json.RawMessage) (any, error) {
-	return nil, fmt.Errorf("Tablas de verdad...", modulos.ErrNoImplementado)
+	return nil, fmt.Errorf("tablas de verdad: %w", modulos.ErrNoImplementado)
 }
