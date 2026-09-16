@@ -3,8 +3,8 @@ package formula
 import "fmt"
 
 type parser struct {
-	tokens []token 
-	pos int 
+	tokens []token
+	pos    int
 }
 
 func (p *parser) tokenActual() token {
@@ -16,15 +16,14 @@ func (p *parser) avanzarToken() token {
 	if p.pos < len(p.tokens)-1 {
 		p.pos++
 	}
-	return t 
+	return t
 }
 
-// Por aquí entra el paquete 
+// Por aquí entra el paquete
 func Parsear(entrada string) (Formula, error) {
 	tokens, err := escanear(entrada)
-
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 
 	// Si no hay nada más que leer +
@@ -32,26 +31,26 @@ func Parsear(entrada string) (Formula, error) {
 		return nil, fmt.Errorf("[ERROR] La fórmula está vacía")
 	}
 
-	p := &parser{tokens}
+	p := &parser{tokens: tokens}
 
-	f, err := p.bicondicional() 
+	f, err := p.bicondicional()
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 
-	// Si algo sobró, la fórmula estaba mal 
+	// Si algo sobró, la fórmula estaba mal
 	if p.tokenActual().tipo != tokenFin {
-		return nil, fmt.Errorf("[ERROR] Sobra %q después de la fórmula", p.actual().texto)
+		return nil, fmt.Errorf("[ERROR] Sobra %q después de la fórmula", p.tokenActual().texto)
 	}
 
-	return f, nil 
+	return f, nil
 }
 
 // <->
 func (p *parser) bicondicional() (Formula, error) {
 	ant, err := p.condicional()
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 
 	for p.tokenActual().tipo == tokenBicondicional {
@@ -59,10 +58,10 @@ func (p *parser) bicondicional() (Formula, error) {
 
 		cons, err := p.condicional()
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 
-		cons = Bicondicional{ant, const}
+		ant = Bicondicional{ant, cons}
 	}
 
 	return ant, nil
@@ -72,7 +71,7 @@ func (p *parser) bicondicional() (Formula, error) {
 func (p *parser) condicional() (Formula, error) {
 	ant, err := p.disyuncion()
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 
 	if p.tokenActual().tipo == tokenCondicional {
@@ -80,21 +79,20 @@ func (p *parser) condicional() (Formula, error) {
 
 		cons, err := p.condicional()
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 
-		return Condicional{ant, cons}
+		return Condicional{ant, cons}, nil
 	}
 
-	return ant, nil 
+	return ant, nil
 }
 
-// Disyuncion, misma recursividad de la conjunción 
+// Disyuncion, misma recursividad de la conjunción
 func (p *parser) disyuncion() (Formula, error) {
 	ant, err := p.conjuncion()
-
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 
 	for p.tokenActual().tipo == tokenO {
@@ -102,21 +100,20 @@ func (p *parser) disyuncion() (Formula, error) {
 
 		cons, err := p.conjuncion()
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 
 		ant = O{ant, cons}
 	}
 
-	return ant, nil 
+	return ant, nil
 }
 
-// Conjunción 
+// Conjunción
 func (p *parser) conjuncion() (Formula, error) {
 	ant, err := p.modBasicos()
-
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 
 	// Recursividad p & q & r -> p & (q & r)
@@ -125,7 +122,7 @@ func (p *parser) conjuncion() (Formula, error) {
 
 		cons, err := p.modBasicos()
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 
 		ant = Y{ant, cons}
@@ -134,59 +131,56 @@ func (p *parser) conjuncion() (Formula, error) {
 	return ant, nil
 }
 
-// ~, [], <>, que sólo modifican la variable a su derecha 
+// ~, [], <>, que sólo modifican la variable a su derecha
 // Se llaman a sí mismos para formar ~~p, ~[]p, []<>~p
 func (p *parser) modBasicos() (Formula, error) {
 	switch p.tokenActual().tipo {
 	case tokenNo:
 		p.avanzarToken()
 		modificada, err := p.modBasicos()
-		
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 
-		return No{modificada}, nil 
+		return No{modificada}, nil
 
 	case tokenNecesario:
 		p.avanzarToken()
 		modificada, err := p.modBasicos()
-
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 
-		return Necesario{modificada}, nil 
+		return Necesario{modificada}, nil
 
 	case tokenPosible:
 		p.avanzarToken()
 		modificada, err := p.modBasicos()
-
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 
-		return Posible{modificada}, nil 
+		return Posible{modificada}, nil
 	}
 
 	return p.atomo()
 }
 
-// Variable o fórmula entre paréntesis 
+// Variable o fórmula entre paréntesis
 func (p *parser) atomo() (Formula, error) {
 	t := p.tokenActual()
 
 	switch t.tipo {
 	case tokenVariable:
 		p.avanzarToken()
-		return Variable{Nombre: t.texto}, nil 
+		return Variable{Nombre: t.texto}, nil
 
 	case tokenParentIzq:
 		p.avanzarToken()
-		
+
 		dentro, err := p.bicondicional()
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 
 		if p.tokenActual().tipo != tokenParentDer {
@@ -194,7 +188,7 @@ func (p *parser) atomo() (Formula, error) {
 		}
 		p.avanzarToken()
 
-		return dentro, nil 
+		return dentro, nil
 
 	case tokenFin:
 		return nil, fmt.Errorf("[ERROR] La fórmula terminó antes de tiempo")
@@ -202,4 +196,3 @@ func (p *parser) atomo() (Formula, error) {
 
 	return nil, fmt.Errorf("[ERROR] No se esperaba un %q aquí", t.texto)
 }
-

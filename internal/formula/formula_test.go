@@ -47,3 +47,68 @@ func TestEscanearErrores(t *testing.T) {
 		}
 	}
 }
+
+func TestParser(t *testing.T) {
+	casos := []struct{ entrada, esperado string }{
+		// No debería quedar ~(p & q)
+		{"~p & q", "(~p & q)"},
+
+		// La conjunción tiene preferencia sobre la disyunción
+		{"p | q & r", "(p | (q & r))"},
+		{"p | q -> r", "((p | q) -> r)"},
+
+		// Toma prioridad el condicional, que asocia hacia la derecha
+		{"p -> q <-> r", "((p -> q) <-> r)"},
+		{"p -> q -> r", "(p -> (q -> r))"},
+
+		// Recursividad en la conjunción y en la disyunción
+		{"p & q & r", "((p & q) & r)"},
+		{"p | q | r", "((p | q) | r)"},
+
+		// El bicondicional da igual
+		{"p <-> q <-> r", "((p <-> q) <-> r)"},
+
+		// Victoria de los paréntesis
+		{"(p | q) & r", "((p | q) & r)"},
+
+		// Modificadores modales encadenados
+		{"[]<>p", "[]<>p"},
+		{"~[]~p", "~[]~p"},
+		{"[](p -> q)", "[](p -> q)"},
+
+		// Probar con proposiciones compuestas
+		{"P1 & Q2", "(P1 & Q2)"},
+		{"A <-> Z", "(A <-> Z)"},
+	}
+
+	for _, caso := range casos {
+		f, err := Parsear(caso.entrada)
+		if err != nil {
+			t.Errorf("[ERROR] Parsear(%q) dio error: %v", caso.entrada, err)
+			continue
+		}
+
+		if obtenido := Escribir(f); obtenido != caso.esperado {
+			t.Errorf("[ERROR] Parsear(%q) = %q, pero se esperaba %q", caso.entrada, obtenido, caso.esperado)
+		}
+	}
+}
+
+func TestParsearErrores(t *testing.T) {
+	malas := []string{
+		"",       // vacía
+		"p &",    // falta el operando derecho
+		"& p",    // falta el izquierdo
+		"(p & q", // paréntesis sin cerrar
+		"p & q)", // paréntesis de más
+		"p q",    // dos variables juntas
+		"~",      // negación sin nada
+		"p <-> ", // bicondicional sin operando
+	}
+
+	for _, entrada := range malas {
+		if _, err := Parsear(entrada); err == nil {
+			t.Errorf("Parsear(%q) debió fallar y no falló", entrada)
+		}
+	}
+}
