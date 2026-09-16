@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { pedir, type Respuesta } from "../api";
 import type { Modulo } from "../modulos";
+import { teclados } from "../teclados"
+import { Teclado } from "./Teclado"
 
 // arranca los campos con sus valores de ejemplo 
 function valoresIniciales(modulo: Modulo): Record<string, string> {
@@ -45,6 +47,21 @@ export function PanelModulo({ modulo }: { modulo: Modulo }) {
     }
   }
 
+  // Teclado del módulo 
+  const teclado = teclados[modulo.id];
+
+  // Agrega el texto al final del teclado 
+  function insertar(texto: string) {
+    const campo = teclado.campo;
+    setValores({ ...valores, [campo]: (valores[campo] ?? "") + texto });
+  }
+
+  // Quita el último caracter 
+  function borrar() {
+    const campo = teclado.campo;
+    setValores({ ...valores, [campo]: (valores[campo] ?? "").slice(0, -1) });
+  }
+
   return (
     <section className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-lg border border-black bg-white p-4">
@@ -79,6 +96,21 @@ export function PanelModulo({ modulo }: { modulo: Modulo }) {
             </label>
           ))}
         </div>
+
+        {teclado && (
+          <div className="mt-4 border-t border-slate-300 pt-3">
+            <p className="mb-2 text-xs text-slate-500">
+              Teclado para{" "}<span className="font-mono font-semibold">{teclado.campo}</span>. También se puede escribir en la caja de arriba.
+            </p>
+
+            <Teclado
+              teclado={teclado}
+              onInsertar={insertar}
+              onBorrar={borrar}
+              onResolver={resolver}
+            />
+          </div>
+        )}
 
         <button
           onClick={resolver}

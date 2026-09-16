@@ -1,43 +1,36 @@
 import { useState } from "react";
 
+import { Navbar, type Seccion } from "./componentes/Navbar";
 import { PanelEstado } from "./componentes/PanelEstado";
 import { PanelModulo } from "./componentes/PanelModulo";
 import { modulos } from "./modulos";
 
+// Secciones de los backends
+const secciones: Seccion[] = [
+  { id: "inicio", nombre: "Inicio" },
+  ...modulos.map((m) => ({ id: m.id, nombre: m.nombre })),
+];
+
 export default function App() {
-  const [activo, setActivo] = useState(modulos[0].id);
-  const modulo = modulos.find((m) => m.id === activo) ?? modulos[0];
+  const [activa, setActiva] = useState("inicio");
+
+  const modulo = modulos.find((m) => m.id === activa);
 
   return ( 
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-4">
-          <h1 className="text-lg font-semibold">Lógica Distribuida</h1>
-          <p className="text-sm text-slate-500">Proyecto primera entrega!!!</p>
-          <p className="text-sm text-slate-500">1 middleware, 1 LB y 3 instancias por cada backend (3)</p>
-        </div>
-      </header>
+      <Navbar secciones={secciones} activa={activa} onCambiar={setActiva} />
 
       <main className="mx-auto max-w-5xl space-y-4 px-6 py-6">
-        <PanelEstado />
-
-        <nav className="flex gap-1 border-b border-slate-200">
-          {modulos.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setActivo(m.id)}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
-                m.id === activo
-                  ? "border-slate-900 text-slate-900"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              {m.nombre}
-            </button>
-          ))}
-        </nav>
-
-        <PanelModulo modulo={modulo} />
+        {activa === "inicio" ? (
+          <>
+            <p className="text-sm text-slate-600">
+              Conexión con el middleware y estado de instancias.
+            </p>
+            <PanelEstado />
+          </>
+        ) : modulo ? (
+          <PanelModulo modulo={modulo} />
+        ) : null}
       </main>
     </div>
   );
