@@ -72,7 +72,7 @@ func Evaluar(f Formula, interprete Interprete) (bool, error) {
 		}
 
 		// F <-> F y V <-> V son ambos verdaderos. Si son desiguales, son falsos
-		return ant == der, nil
+		return ant == cons, nil
 	}
 
 	return interprete(f)
@@ -105,7 +105,7 @@ type Tabla struct {
 	Formula       string    `json:"formula"`
 	Variable      []string  `json:"variables"`
 	Renglones     []Renglon `json:"renglones"`
-	Clasificacion string    `json:clasificacion`
+	Clasificacion string    `json:"clasificacion"`
 }
 
 // 2^n renglones para las tablas
@@ -140,7 +140,7 @@ func ConstruirTabla(f Formula) (Tabla, error) {
 			// numero se guarda como bit. Si numero = 2, su bit es 010; si i = 0
 			// 010 >> (3 - 1 - 0) ==> 010 >> 2 ==> 000 | 000 & 1 = 0
 			// Esto recorre todo comenzando por FFF y terminando por VVV
-			bit := (numero >> (n - 1 - i)) & i
+			bit := (numero >> (n - 1 - i)) & 1
 
 			// 000 & 0 -> 1 -> true
 			// 000 & 1 -> 0 -> false
@@ -166,8 +166,8 @@ func ConstruirTabla(f Formula) (Tabla, error) {
 	case total:
 		tabla.Clasificacion = "tautologia"
 	case 0:
-		tabla.Clasificacion = "contradicción"
-	case 1:
+		tabla.Clasificacion = "contradiccion"
+	default:
 		tabla.Clasificacion = "contingencia"
 	}
 
