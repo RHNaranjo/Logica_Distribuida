@@ -46,7 +46,7 @@ export function PanelEstado() {
     .flatMap(([, lista]) => lista).length;
 
   return (
-    <section className="rounded-lg border border-black bg-white p-4">
+    <section>
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold tracking-wide text-slate-700 uppercase">
           Estado del sistema
@@ -68,7 +68,7 @@ export function PanelEstado() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         {grupos.map(([modulo, instancias]) => (
-          <div key={modulo} className="rounded border border-slate-200 p-3">
+          <div key={modulo}>
             <p className="mb-2 font-mono text-xs font-semibold text-slate-600">{modulo}</p>
 
             <ul className="space-y-1">
