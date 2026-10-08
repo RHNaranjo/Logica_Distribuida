@@ -96,5 +96,5 @@ log "Levantando los 7 contenedores..."
 sudo docker compose up -d
 
 log "Listo. Verifica con: sudo docker compose ps"
-log "Frontend en:    http://localhost:3000"
-log "Middleware en:  http://localhost:8080/api/estado"
+log "Página en: http://localhost:8000"
+log "Estado en: http://localhost:8000/api/estado"

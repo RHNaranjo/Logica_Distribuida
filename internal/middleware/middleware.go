@@ -39,31 +39,6 @@ func ConLog(nodo string, siguiente http.Handler) http.Handler {
 	})
 }
 
-// Permitir que el front consuma la API
-func ConCORS(siguiente http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Qué páginas pueden leer una respuesta
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-
-		// Qué métodos de HTTP se pueden usar
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-
-		// Qué headers se pueden mandar a la petición
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		// Para que JS no pueda leer los headers aunque lleguen
-		w.Header().Set("Access-Control-Expose-Headers", "X-Peticion, X-Instancia, X-Nodo")
-
-		// El navegador pregunta permiso
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		siguiente.ServeHTTP(w, r)
-	})
-}
-
 // Identificador único a cada petición que entra
 func ConPeticion(siguiente http.Handler) http.Handler {
 	var contador atomic.Uint64

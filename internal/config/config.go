@@ -158,8 +158,3 @@ func URLLoadBalancer(respaldo string) string {
 func DirectorioWeb(respaldo string) string {
 	return getEnv("DIRECTORIO_WEB", respaldo)
 }
-
-// Dirección del middleware como la ve el navegador (no interna)
-func MiddlewarePublico(respaldo string) string {
-	return getEnv("MIDDLEWARE_PUBLICO", respaldo)
-}

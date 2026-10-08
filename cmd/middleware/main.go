@@ -21,12 +21,11 @@ func main() {
 
 	ctrl := puerta.NuevoControlador(destino)
 
-	// CORS(Peticion(Log(Nodo(rutas))))
+	// Peticion(Log(Nodo(rutas)))
 	var handler http.Handler = ctrl.Rutas()
 	handler = middleware.ConNodo("middleware", handler) // Sólo marca la respuesta
 	handler = middleware.ConLog("middleware", handler)
 	handler = middleware.ConPeticion(handler) // Después de ConLog para que el ID ya exista
-	handler = middleware.ConCORS(handler)     // Atrapa el OPTIONS
 
 	puerto := config.PuertoHTTP("8080")
 	log.Printf("[INFO] middleware escuchando en %s. Se reenvía a %s", puerto, destino)

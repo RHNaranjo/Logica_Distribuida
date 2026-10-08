@@ -83,7 +83,7 @@ services:
     ports:
       - "9021-9023:9021-9023"
 
-  # Middleware público
+  # Marcar, registrar y mandar la API 
   middleware:
     <<: *servicio-go
     command: ["/app/middleware"]
@@ -91,9 +91,7 @@ services:
       PUERTO: "8080"
       LOADBALANCER_URL: http://loadbalancer:8081
     depends_on:
-      - loadbalancer
-    ports:
-      - "8080:8080"
+      - loadbalancer 
 
   # Frontend
   frontend:
@@ -102,12 +100,20 @@ services:
     environment:
       PUERTO: "3000"
       DIRECTORIO_WEB: /app/web
-      # Dirección del navegador, no la red interna de Docker
-      MIDDLEWARE_PUBLICO: http://localhost:8080
+
+  # Recibir todo lo que manda el navegador
+  nginx-gateway:
+    build: ./nginx-gateway
+    restart: unless-stopped
     depends_on:
-      - middleware
+      frontend:
+        condition: service_started
+        restart: true
+      middleware:
+        condition: service_started
+        restart: true
     ports:
-      - "3000:3000"
+      - "8000:8000"
 
 volumes:
   postgres-datos:
