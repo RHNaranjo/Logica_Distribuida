@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package logica;
+
+option go_package = "logica/internal/rpc";
+
+import "google/protobuf/struct.proto";
+
+// Contrato de los módulos con JSON 
+service Modulo {
+  // Resolver la entrada del módulo 
+  rpc Resolver(google.protobuf.Struct) returns (google.protobuf.Struct);
+
+  rpc Historial(PeticionHistorial) returns (google.protobuf.ListValue);
+}
+
+message PeticionHistorial {
+  int32 limite = 1;
+}
