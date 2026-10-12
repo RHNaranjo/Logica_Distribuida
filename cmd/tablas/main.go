@@ -9,6 +9,7 @@ import (
 	"logica/internal/historial"
 	"logica/internal/modulos"
 	"logica/internal/modulos/tablas"
+	"logica/internal/rpc"
 	"logica/internal/servidor"
 )
 
@@ -30,19 +31,21 @@ func main() {
 	log.Printf("[INFO] Módulo %s conectado a la db", tablas.Nombre)
 
 	op := servidor.Opciones{
-		Modulo:        tablas.Nombre,
-		Instancias:    config.NumInstancias(),
-		PuertoBase:    config.PuertoBase(puertoPorOmision),
-		HostAnunciado: config.HostAnunciado("localhost"),
-		URLRegistro:   config.URLRegistro(),
+		Modulo:     tablas.Nombre,
+		Instancias: config.NumInstancias(),
+		PuertoBase: config.PuertoBase(puertoPorOmision),
 	}
 
 	repo := historial.NuevoRepo(db)
-	ctrl := modulos.NuevoControlador(tablas.Nombre, repo, tablas.Resolver)
+
+	// Un controlador por instancia, aunque todos comparten el repo
+	nuevo := func(instancia string) rpc.ModuloServer {
+		return modulos.NuevoControlador(tablas.Nombre, instancia, repo, tablas.Resolver)
+	}
 
 	log.Printf("[INFO] Módulo %s: %d instancias en el puerto %d", op.Modulo, op.Instancias, op.PuertoBase)
 
-	if err := servidor.Arrancar(op, ctrl.Rutas()); err != nil {
+	if err := servidor.Arrancar(op, nuevo); err != nil {
 		log.Fatalf("[ERROR] %v", err)
 	}
 }
