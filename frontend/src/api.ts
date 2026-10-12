@@ -45,7 +45,7 @@ export async function pedir<T>(ruta: string, cuerpo?: unknown): Promise<Respuest
     // Se queda en texto plano al no tener formato JSON 
   }
 
-  // X-Nodo viene repetido (middleware, loadbalancer, instancia)
+  // X-Nodo viene repetido (nginx-gateway, middleware, nginx-lb, instancia)
   // La API de Headers une los valores repetidos con comas 
   const recorrido = (resp.headers.get("X-Nodo") ?? "")
     .split(",")

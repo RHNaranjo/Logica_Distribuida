@@ -11,15 +11,12 @@ x-modulo: &modulo
   <<: *servicio-go
   environment: &modulo-env
     INSTANCIAS: "3"
-    REGISTRO_URL: http://loadbalancer:8081/registrar
     DB_HOST: postgres 
     DB_PORT: "5432"
     DB_USER: ${DB_USER}
     DB_PASSWORD: ${DB_PASSWORD}
     DB_NAME: logica 
   depends_on:
-    loadbalancer:
-      condition: service_started 
     postgres:
       condition: service_healthy 
 
@@ -43,22 +40,12 @@ services:
     ports:
       - "5432:5432"
 
-  # Loadbalancer: registro, round-robin y health checks
-  loadbalancer:
-    <<: *servicio-go
-    command: ["/app/loadbalancer"]
-    environment:
-      PUERTO: "8081"
-    ports:
-      - "8081:8081"
-
   # Tres instancias por módulo
   mundos:
     <<: *modulo
     command: ["/app/mundos"]
     environment:
       <<: *modulo-env
-      HOST_ANUNCIO: mundos
       PUERTO_BASE: "9001"
     ports:
       - "9001-9003:9001-9003"
@@ -68,7 +55,6 @@ services:
     command: ["/app/tablas"]
     environment:
       <<: *modulo-env
-      HOST_ANUNCIO: tablas
       PUERTO_BASE: "9011"
     ports:
       - "9011-9013:9011-9013"
@@ -78,7 +64,6 @@ services:
     command: ["/app/deduccion"]
     environment:
       <<: *modulo-env
-      HOST_ANUNCIO: deduccion
       PUERTO_BASE: "9021"
     ports:
       - "9021-9023:9021-9023"
@@ -89,9 +74,7 @@ services:
     command: ["/app/middleware"]
     environment:
       PUERTO: "8080"
-      LOADBALANCER_URL: http://loadbalancer:8081
-    depends_on:
-      - loadbalancer 
+      GRPC_DESTINO: nginx-gateway:9000
 
   # Frontend
   frontend:
@@ -112,8 +95,18 @@ services:
       middleware:
         condition: service_started
         restart: true
+      tablas:
+        condition: service_started
+        restart: true
+      mundos:
+        condition: service_started
+        restart: true 
+      deduccion:
+        condition: service_started 
+        restart: true 
     ports:
-      - "8000:8000"
+      - "8000:8000" # Página y API 
+      - "9000:9000" # gRPC 
 
 volumes:
   postgres-datos:

@@ -3,10 +3,8 @@ package config
 import (
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"strconv"
-	"strings"
 )
 
 // Cada nodo apunta a su base de datos. DSN arma conexión a Postgres de su propio nodo
@@ -37,27 +35,6 @@ func DSN() (string, error) {
 	return dsn, nil
 }
 
-// Devuelve el identificador del mundo del proceso
-func MundoID() (int, error) {
-	valor := os.Getenv("MUNDO_ID")
-
-	if valor == "" {
-		return 0, fmt.Errorf("Falta la variable de entorno MUNDO_ID")
-	}
-
-	id, err := strconv.Atoi(valor)
-	if err != nil {
-		// Usé %w para incluir el contexto del error, que se pierde si hubiera utilizado %v
-		return 0, fmt.Errorf("MUNDO_ID debe ser un número entero, pero se recibió %q: %w", valor, err)
-	}
-
-	if id < 0 {
-		return 0, fmt.Errorf("MUNDO_ID debe ser mayo o igual a 0, se recibió: %d", id)
-	}
-
-	return id, nil
-}
-
 // Obtener el puerto en el que el proceso escucha
 func PuertoHTTP(respaldo string) string {
 	return ":" + getEnv("PUERTO", respaldo)
@@ -72,47 +49,8 @@ func getEnv(clave, respaldo string) string {
 	return respaldo
 }
 
-// Devolver direcciones de los nodo-mundo
-// urls[0] es el mundo0, urls[1] es el mundo1
-func MundosURLs() ([]string, error) {
-	valor := os.Getenv("MUNDOS_URLS")
-
-	if valor == "" {
-		return nil, fmt.Errorf("[ERROR] Falta la variable de entorno MUNDOS_URLS")
-	}
-
-	partes := strings.Split(valor, ",")
-
-	// Crear el espacio en memoria para los URLs
-	urls := make([]string, 0, len(partes))
-
-	for _, parte := range partes {
-		parte = strings.TrimSpace(parte)
-		if parte == "" {
-			continue
-		}
-
-		// Quitar la diagnoal
-		// Objetivo: http://mundo0:8080//configurar
-		parte = strings.TrimSuffix(parte, "/")
-
-		u, err := url.Parse(parte)
-		if err != nil || u.Scheme == "" || u.Host == "" {
-			return nil, fmt.Errorf("[ERROR] La dirección %q no es válida (¿le falta el http://?)", parte)
-		}
-
-		urls = append(urls, parte)
-	}
-
-	if len(urls) == 0 {
-		return nil, fmt.Errorf("[ERROR] MUNDOS_URLS no contiene ninguna dirección")
-	}
-
-	return urls, nil
-}
-
 // Determinar cuántas instancias levanta el proceso
-// Cada una es una gorutina con su propio HTTP y puerto
+// Cada una es una gorutina con su propio servidor gRPC y puerto
 func NumInstancias() int {
 	return getEnvInt("INSTANCIAS", 3)
 }
@@ -120,16 +58,6 @@ func NumInstancias() int {
 // Puerto de la primera instancia; las demás instancias se van sumando
 func PuertoBase(respaldo int) int {
 	return getEnvInt("PUERTO_BASE", respaldo)
-}
-
-// Nombre con el que las instancias se anuncian ante el LB
-func HostAnunciado(respaldo string) string {
-	return getEnv("HOST_ANUNCIO", respaldo)
-}
-
-// Dirección del POST /registrar
-func URLRegistro() string {
-	return os.Getenv("REGISTRO_URL")
 }
 
 // Convertir getEnv pero en entero

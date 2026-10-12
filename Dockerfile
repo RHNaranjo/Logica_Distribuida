@@ -24,7 +24,6 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o /bin/mundos ./cmd/mundos
 RUN CGO_ENABLED=0 go build -o /bin/tablas ./cmd/tablas
 RUN CGO_ENABLED=0 go build -o /bin/deduccion ./cmd/deduccion
-RUN CGO_ENABLED=0 go build -o /bin/loadbalancer ./cmd/loadbalancer
 RUN CGO_ENABLED=0 go build -o /bin/middleware ./cmd/middleware
 RUN CGO_ENABLED=0 go build -o /bin/frontend ./cmd/frontend
 
@@ -36,7 +35,6 @@ WORKDIR /app
 COPY --from=constructor /bin/mundos /app/mundos
 COPY --from=constructor /bin/tablas /app/tablas
 COPY --from=constructor /bin/deduccion /app/deduccion
-COPY --from=constructor /bin/loadbalancer /app/loadbalancer
 COPY --from=constructor /bin/middleware /app/middleware
 COPY --from=constructor /bin/frontend /app/frontend
 
