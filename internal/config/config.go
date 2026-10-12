@@ -149,9 +149,9 @@ func getEnvInt(clave string, respaldo int) int {
 	return n
 }
 
-// Dirección del LB al que el middleware envía todo
-func URLLoadBalancer(respaldo string) string {
-	return getEnv("LOADBALANCER_URL", respaldo) // Después dentro del Docker
+// Dirección gRPC a la que el middlware manda sus cosas
+func DestinoGRPC(respaldo string) string {
+	return getEnv("GRPC_DESTINO", respaldo)
 }
 
 // Carpeta con el frontend que sirve el contenedor
