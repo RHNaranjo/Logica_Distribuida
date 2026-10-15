@@ -40,6 +40,14 @@ services:
     ports:
       - "5432:5432"
 
+  # Consul para service discovery 
+  consul: 
+    image: hashicorp/consul:latest 
+    restart: unless-stopped 
+    command: "agent -dev -client=0.0.0.0 -ui"
+    ports: 
+      - "8500:8500"
+
   # Tres instancias por módulo
   mundos:
     <<: *modulo
