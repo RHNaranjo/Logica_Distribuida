@@ -77,6 +77,16 @@ func getEnvInt(clave string, respaldo int) int {
 	return n
 }
 
+// Nombre para que nginx y Consul alcancen la instancia
+func HostAnunciado(respaldo string) string {
+	return getEnv("HOST_ANUNCIO", respaldo)
+}
+
+// Dirección (host:puerto)
+func DireccionConsul(respaldo string) string {
+	return getEnv("CONSUL_HTTP_ADDR", respaldo)
+}
+
 // Dirección gRPC a la que el middlware manda sus cosas
 func DestinoGRPC(respaldo string) string {
 	return getEnv("GRPC_DESTINO", respaldo)

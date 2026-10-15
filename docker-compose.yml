@@ -11,6 +11,7 @@ x-modulo: &modulo
   <<: *servicio-go
   environment: &modulo-env
     INSTANCIAS: "3"
+    CONSUL_HTTP_ADDR: consul:8500
     DB_HOST: postgres 
     DB_PORT: "5432"
     DB_USER: ${DB_USER}
@@ -19,6 +20,8 @@ x-modulo: &modulo
   depends_on:
     postgres:
       condition: service_healthy 
+    consul:
+      condition: service_started
 
 services:
   # Base de datos única
@@ -54,6 +57,7 @@ services:
     command: ["/app/mundos"]
     environment:
       <<: *modulo-env
+      HOST_ANUNCIO: mundos
       PUERTO_BASE: "9001"
     ports:
       - "9001-9003:9001-9003"
@@ -63,6 +67,7 @@ services:
     command: ["/app/tablas"]
     environment:
       <<: *modulo-env
+      HOST_ANUNCIO: tablas
       PUERTO_BASE: "9011"
     ports:
       - "9011-9013:9011-9013"
@@ -72,6 +77,7 @@ services:
     command: ["/app/deduccion"]
     environment:
       <<: *modulo-env
+      HOST_ANUNCIO: deduccion
       PUERTO_BASE: "9021"
     ports:
       - "9021-9023:9021-9023"

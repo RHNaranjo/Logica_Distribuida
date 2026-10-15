@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc"
@@ -13,6 +16,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 
+	"logica/internal/consul"
 	"logica/internal/rpc"
 )
 
@@ -20,11 +24,22 @@ type Opciones struct {
 	Modulo     string // mundos, tablas o deducción natural
 	Instancias int
 	PuertoBase int
+	Host       string
+	Consul     string // host:puerto
 }
 
 // Levantar N servidores gRPC, uno por gorutina. Se bloquea hasta que alguno de ellos se caiga
 func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error {
 	errores := make(chan error, op.Instancias)
+
+	var nombres []string
+
+	// Borrar las instancias si se sale por error o por apagar
+	defer func() {
+		for _, nombre := range nombres {
+			consul.Borrar(op.Consul, nombre)
+		}
+	}()
 
 	for i := 0; i < op.Instancias; i++ {
 		puerto := op.PuertoBase + i
@@ -48,10 +63,23 @@ func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error 
 			log.Printf("[INFO] %s escuchando gRPC en :%d", nombre, puerto)
 			errores <- fmt.Errorf("la instancia %s se detuvo: %w", nombre, srv.Serve(escucha))
 		}()
+
+		// Darse de alta en Consul
+		nombres = append(nombres, nombre)
+		go consul.Registrar(op.Consul, consul.Servicio{ID: nombre, Nombre: op.Modulo, Host: op.Host, Puerto: puerto})
 	}
 
-	// Si algo pasa, se suicida con mucho ruido jajaja
-	return <-errores
+	// Escuchar el apagado del docker stop
+	apagado := make(chan os.Signal, 1)
+	signal.Notify(apagado, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-errores:
+		return err
+	case <-apagado:
+		log.Printf("[INFO] Apagando %s", op.Modulo)
+		return nil
+	}
 }
 
 func interceptor(nombre string) grpc.UnaryServerInterceptor {
@@ -63,7 +91,7 @@ func interceptor(nombre string) grpc.UnaryServerInterceptor {
 
 		// Leer el id de petición que manda el middleware
 		peticion := "-"
-		if md, ok := metadata.FromIncomingContext(ctx); ok && len(md.Get("x-petition")) > 0 {
+		if md, ok := metadata.FromIncomingContext(ctx); ok && len(md.Get("x-peticion")) > 0 {
 			peticion = md.Get("x-peticion")[0]
 		}
 
