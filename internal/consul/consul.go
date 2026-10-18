@@ -46,7 +46,7 @@ func Registrar(direccion string, s Servicio) {
 		return
 	}
 
-	url := "http://" + direccion + "v1/agent/service/register"
+	url := "http://" + direccion + "/v1/agent/service/register"
 
 	for intento := 1; intento <= 10; intento++ {
 		err = enviar(http.MethodPut, url, cuerpo)
@@ -65,7 +65,7 @@ func Registrar(direccion string, s Servicio) {
 
 // Quitar la instancia para que nginx la deje en paz
 func Borrar(direccion, id string) {
-	url := "http://" + direccion + "v1/agent/service/deregister/" + id
+	url := "http://" + direccion + "/v1/agent/service/deregister/" + id
 
 	if err := enviar(http.MethodPut, url, nil); err != nil {
 		log.Printf("[AVISO] No se pudo borrar %s de Consul: %v", id, err)

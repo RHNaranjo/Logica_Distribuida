@@ -63,7 +63,7 @@ export function PanelEstado() {
       )}
 
       {!error && total === 0 && (
-        <p className="text-sm text-slate-500">Ninguna instancia ha respondido aún. Resuelve algo en otra pestaña.</p>
+        <p className="text-sm text-slate-500">Consul no tiene ninguna instancia registrada aún.</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">

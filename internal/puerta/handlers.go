@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"slices"
 	"strconv"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"logica/internal/consul"
 	"logica/internal/rpc"
 	"logica/internal/web"
 )
@@ -39,16 +41,18 @@ type Instancia struct {
 type Controlador struct {
 	modulo rpc.ModuloClient
 	salud  healthpb.HealthClient
+	consul string // host:puerto de Consul
 
 	mu        sync.Mutex
 	atendidas map[string]map[string]int // "tablas" -> "tablas-1" -> 12
 }
 
 // Los dos clientes comparten la misma conexión con nginx
-func NuevoControlador(conexion *grpc.ClientConn) *Controlador {
+func NuevoControlador(conexion *grpc.ClientConn, direccionConsul string) *Controlador {
 	return &Controlador{
 		modulo:    rpc.NewModuloClient(conexion),
 		salud:     healthpb.NewHealthClient(conexion),
+		consul:    direccionConsul,
 		atendidas: make(map[string]map[string]int),
 	}
 }
@@ -178,17 +182,28 @@ func (c *Controlador) Historial(w http.ResponseWriter, r *http.Request) {
 
 // Devolver cuántas peticiones ha atendido cada instancia
 func (c *Controlador) Estado(w http.ResponseWriter, r *http.Request) {
+	registradas, err := consul.Estado(c.consul)
+	if err != nil {
+		log.Printf("[ERROR] No se pudo leer Consul: %v", err)
+		web.Fallo(w, http.StatusBadGateway, "no se pudo consultar Consul")
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	estado := make(map[string][]Instancia)
 
-	for modulo, cuentas := range c.atendidas {
-		for nombre, n := range cuentas {
-			estado[modulo] = append(estado[modulo], Instancia{Instancia: nombre, Sana: true, Atendidas: n})
+	for modulo, instancias := range registradas {
+		for _, inst := range instancias {
+			estado[modulo] = append(estado[modulo], Instancia{
+				Instancia: inst.Nombre,
+				Sana:      inst.Sana,
+				Atendidas: c.atendidas[modulo][inst.Nombre],
+			})
 		}
 
-		// Ordenar por nombre para que no bailen en la página
+		// Ordenar por nombre
 		slices.SortFunc(estado[modulo], func(a, b Instancia) int {
 			return cmp.Compare(a.Instancia, b.Instancia)
 		})

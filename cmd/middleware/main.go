@@ -22,7 +22,7 @@ func main() {
 	}
 	defer conexion.Close()
 
-	ctrl := puerta.NuevoControlador(conexion)
+	ctrl := puerta.NuevoControlador(conexion, config.DireccionConsul("localhost:8500"))
 
 	// Peticion(Log(Nodo(rutas)))
 	var handler http.Handler = ctrl.Rutas()
