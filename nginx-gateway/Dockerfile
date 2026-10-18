@@ -1,4 +1,9 @@
-FROM nginx:alpine 
-COPY nginx.conf /etc/nginx/nginx.conf 
-EXPOSE 8000
+FROM hashicorp/consul-template:alpine AS consul-template
 
+FROM nginx:alpine 
+COPY --from=consul-template /bin/consul-template /usr/local/bin/consul-template 
+COPY templates/nginx.conf.ctmpl /etc/consul-template/nginx.conf.ctmpl 
+COPY docker-entrypoint.sh /docker-entrypoint.sh 
+RUN chmod +x /docker-entrypoint.sh 
+EXPOSE 8000 9000 
+ENTRYPOINT ["/docker-entrypoint.sh"]

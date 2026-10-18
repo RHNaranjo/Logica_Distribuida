@@ -102,22 +102,17 @@ services:
   nginx-gateway:
     build: ./nginx-gateway
     restart: unless-stopped
+    environment:
+      CONSUL_HTTP_ADDR: consul:8500 
     depends_on:
+      consul:
+        condition: service_started          
       frontend:
         condition: service_started
         restart: true
       middleware:
         condition: service_started
         restart: true
-      tablas:
-        condition: service_started
-        restart: true
-      mundos:
-        condition: service_started
-        restart: true 
-      deduccion:
-        condition: service_started 
-        restart: true 
     ports:
       - "8000:8000" # Página y API 
       - "9000:9000" # gRPC 

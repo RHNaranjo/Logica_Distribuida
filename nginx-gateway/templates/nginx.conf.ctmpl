@@ -41,23 +41,29 @@ http {
     }
   }
 
-  # Balanceador gRPC 
+  # Balanceador gRPC. Aquí COnsul decide qué instancias sanas existen
   upstream tablas {
-    server tablas:9011 max_fails=3 fail_timeout=30s;
-    server tablas:9012 max_fails=3 fail_timeout=30s;
-    server tablas:9013 max_fails=3 fail_timeout=30s;
+    {{ range service "tablas" }}
+    server {{ .Address }}:{{ .Port }} max_fails=3 fail_timeout=30s; 
+    {{ else }}
+    server 127.0.0.1:65535 down;
+    {{ end }}
   }
 
   upstream mundos {
-    server mundos:9001 max_fails=3 fail_timeout=30s;
-    server mundos:9002 max_fails=3 fail_timeout=30s;
-    server mundos:9003 max_fails=3 fail_timeout=30s;
+    {{ range service "mundos" }}
+    server {{ .Address }}:{{ .Port }} max_fails=3 fail_timeout=30s;
+    {{ else }}
+    server 127.0.0.1:65535 down;
+    {{ end }}
   }
 
   upstream deduccion {
-    server deduccion:9021 max_fails=3 fail_timeout=30s;
-    server deduccion:9022 max_fails=3 fail_timeout=30s;
-    server deduccion:9023 max_fails=3 fail_timeout=30s;
+    {{ range service "deduccion" }}
+    server {{ .Address }}:{{ .Port }} max_fails=3 fail_timeout=30s;
+    {{ else }}
+    server 127.0.0.1:65535 down;
+    {{ end }}
   }
 
   # Atrapar los módulos que no existen
