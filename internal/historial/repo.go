@@ -11,6 +11,7 @@ import (
 // Fila del historial
 type Registro struct {
 	ID        int64           `json:"id"`
+	EventoID  string          `json:"evento_id.omitempty"`
 	Modulo    string          `json:"modulo"`
 	Instancia string          `json:"instancia"`
 	Entrada   json.RawMessage `json:"entrada"`
@@ -30,9 +31,11 @@ func NuevoRepo(db *sql.DB) *Repo {
 
 // Anota el intento
 func (r *Repo) Guardar(ctx context.Context, reg Registro) error {
+	// El DO NOTHING lo vuelve idempotente, pues ignora la segunda vez que se llama una función
 	const consulta = `
-		INSERT INTO historial (modulo, instancia, entrada, resultado, error)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO historial (evento_id, modulo, instancia, entrada, resultado, error, creado_en)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (evento_id) DO NOTHING 
 		`
 
 	// nil -> NULL
@@ -47,7 +50,7 @@ func (r *Repo) Guardar(ctx context.Context, reg Registro) error {
 	}
 
 	// Ejecutar la consulta SQL
-	_, err := r.db.ExecContext(ctx, consulta, reg.Modulo, reg.Instancia, string(reg.Entrada), resultado, errorTexto)
+	_, err := r.db.ExecContext(ctx, consulta, reg.EventoID, reg.Modulo, reg.Instancia, string(reg.Entrada), resultado, errorTexto, reg.CreadoEn)
 	if err != nil {
 		return fmt.Errorf("[ERROR] No se pudo guardar en el historial: %w", err)
 	}
