@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/segmentio/kafka-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -19,6 +20,7 @@ import (
 
 const (
 	tiempoLimite     = 10 * time.Second
+	tiempoPublicar   = 3 * time.Second // No detener aunque Kafka no responda
 	limitePorOmision = 20
 	limiteMaximo     = 200
 )
@@ -34,12 +36,13 @@ type Controlador struct {
 
 	modulo    string
 	instancia string
-	repo      *historial.Repo
+	repo      *historial.Repo // leer el historial
+	eventos   *kafka.Writer   // escribir el historial con Kafka
 	resolver  Resolutor
 }
 
-func NuevoControlador(modulo, instancia string, repo *historial.Repo, resolver Resolutor) *Controlador {
-	return &Controlador{modulo: modulo, instancia: instancia, repo: repo, resolver: resolver}
+func NuevoControlador(modulo, instancia string, repo *historial.Repo, eventos *kafka.Writer, resolver Resolutor) *Controlador {
+	return &Controlador{modulo: modulo, instancia: instancia, repo: repo, eventos: eventos, resolver: resolver}
 }
 
 // Resolver la entrada propia del módulo
@@ -131,11 +134,12 @@ func (c *Controlador) anotar(ctx context.Context, entrada []byte, resultado any,
 	}
 
 	// Limitar el tiempo
-	ctxAnotar, cancel := context.WithTimeout(ctx, tiempoLimite)
+	ctxAnotar, cancel := context.WithTimeout(ctx, tiempoPublicar)
 	defer cancel()
 
-	if err := c.repo.Guardar(ctxAnotar, reg); err != nil {
-		log.Printf("[ERROR] %v", err)
+	// Publicar en Kafka
+	if err := historial.Publicar(ctxAnotar, c.eventos, reg); err != nil {
+		log.Printf("[ERROR] No se pudo publicar el historial de %s: %v", c.instancia, err)
 	}
 }
 
