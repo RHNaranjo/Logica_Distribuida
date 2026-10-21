@@ -40,9 +40,16 @@ func main() {
 
 	repo := historial.NuevoRepo(db)
 
-	// Un controlador por instancia, aunque todos comparten el repo
+	// Conectar el historial a kafka
+	eventos, err := historial.ConectarKafka(config.BrokerKafka("localhost:9092"), tablas.Nombre, repo)
+	if err != nil {
+		log.Fatalf("[ERROR] No se pudo conectar a Kafka: %v", err)
+	}
+	defer eventos.Close()
+
+	// Un controlador por instancia, aunque todos comparten el repo y el productor
 	nuevo := func(instancia string) rpc.ModuloServer {
-		return modulos.NuevoControlador(tablas.Nombre, instancia, repo, tablas.Resolver)
+		return modulos.NuevoControlador(tablas.Nombre, instancia, repo, eventos, tablas.Resolver)
 	}
 
 	log.Printf("[INFO] Módulo %s: %d instancias en el puerto %d", op.Modulo, op.Instancias, op.PuertoBase)

@@ -1,6 +1,9 @@
 events{}
 
 http {
+  # DNS interno de Docker, para que nginx resuelva los nombres en caliente
+  resolver 127.0.0.11 valid=5s ipv6=off;
+
   # Apuntar al contenedor de la página 
   upstream frontend {
     server frontend:3000;
@@ -35,32 +38,35 @@ http {
       proxy_pass http://frontend;
     }
 
-    # Repsponder que nginx está vivo 
+    # Responder que nginx está vivo 
     location = /salud {
       return 200 "nginx-gateway vivo";
     }
   }
 
-  # Balanceador gRPC. Aquí COnsul decide qué instancias sanas existen
+  # Balanceador gRPC. Aquí Consul decide qué instancias sanas existen
   upstream tablas {
+    zone tablas 64k;
     {{ range service "tablas" }}
-    server {{ .Address }}:{{ .Port }} max_fails=3 fail_timeout=30s; 
+    server {{ .Address }}:{{ .Port }} resolve max_fails=3 fail_timeout=30s; 
     {{ else }}
     server 127.0.0.1:65535 down;
     {{ end }}
   }
 
   upstream mundos {
+    zone mundos 64k;
     {{ range service "mundos" }}
-    server {{ .Address }}:{{ .Port }} max_fails=3 fail_timeout=30s;
+    server {{ .Address }}:{{ .Port }} resolve max_fails=3 fail_timeout=30s;
     {{ else }}
     server 127.0.0.1:65535 down;
     {{ end }}
   }
 
   upstream deduccion {
+    zone deduccion 64k;
     {{ range service "deduccion" }}
-    server {{ .Address }}:{{ .Port }} max_fails=3 fail_timeout=30s;
+    server {{ .Address }}:{{ .Port }} resolve max_fails=3 fail_timeout=30s;
     {{ else }}
     server 127.0.0.1:65535 down;
     {{ end }}

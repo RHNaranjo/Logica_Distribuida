@@ -61,7 +61,7 @@ func NuevoEscritor(broker, topico string) *kafka.Writer {
 		Topic:        topico,
 		Balancer:     &kafka.Hash{},    // partición = hash(llave)
 		RequiredAcks: kafka.RequireAll, // Esperar a que kafka lo guarde
-		BatchTimeout: 10 * time.Second,
+		BatchTimeout: 10 * time.Millisecond,
 	}
 }
 

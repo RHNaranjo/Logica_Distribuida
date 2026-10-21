@@ -56,7 +56,7 @@ func Registrar(direccion string, s Servicio) {
 			return
 		}
 
-		log.Printf("[AVIDO] Intento %d/10 de registrar %s: %v", intento, s.ID, err)
+		log.Printf("[AVISO] Intento %d/10 de registrar %s: %v", intento, s.ID, err)
 		time.Sleep(2 * time.Second)
 	}
 
@@ -72,7 +72,7 @@ func Borrar(direccion, id string) {
 		return
 	}
 
-	log.Printf("[INFO] %s borada de Consul", id)
+	log.Printf("[INFO] %s borrada de Consul", id)
 }
 
 // Leer todas las instancias y su salud por módulo

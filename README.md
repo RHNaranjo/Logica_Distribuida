@@ -14,8 +14,12 @@ Navegador ──HTTP :8000──▶ nginx-gateway
                                   ├─▶ tablas    ×3 (:9011-9013) ───┤
                                   ├─▶ mundos    ×3 (:9001-9003) ───┤
                                   └─▶ deduccion ×3 (:9021-9023) ───┘
-                                          │
-                                      postgres (:5432)
+                                       │ publican el historial
+                                       ▼
+                                  kafka :9092 (historial.<módulo>, 3 particiones)
+                                       │ consumen (grupo historial-<módulo>)
+                                       ▼
+                                  postgres (:5432)
 ```
 
 | Servicio                        | Qué hace                                                                                                                                                                                                           |
@@ -24,7 +28,8 @@ Navegador ──HTTP :8000──▶ nginx-gateway
 | `consul`                        | Service discovery: las instancias se registran y se borran solas, y Consul les hace health check gRPC cada 5 s. Página en `:8500/ui`.                                                                              |
 | `frontend`                      | Sirve la página (React + Vite).                                                                                                                                                                                    |
 | `middleware`                    | Pone un id a cada petición (`X-Peticion`), registra el log y traduce el HTTP del navegador a gRPC.                                                                                                                 |
-| `tablas`, `mundos`, `deduccion` | Un contenedor por módulo, 3 instancias c/u (servidores gRPC).                                                                                                                                                      |
+| `tablas`, `mundos`, `deduccion` | Un contenedor por módulo, 3 instancias c/u (servidores gRPC). Publican cada resolución en su tópico de Kafka y la consumen para guardarla en Postgres.                                                                                                                                                      |
+| `kafka`                         | Cola de mensajes (`apache/kafka:3.8.0`, KRaft). Un tópico por módulo con 3 particiones. El historial se escribe de forma asíncrona. |
 | `postgres`                      | Base única `logica`, compartida por las 9 instancias.                                                                                                                                                              |
 
 ## Contrato gRPC
@@ -198,6 +203,74 @@ docker compose kill tablas && sleep 7 && curl -s localhost:8000/api/estado
 Esperado: las instancias de `tablas` salen con `"sana":false`. Consul las borra solo
 después de 1 minuto (`DeregisterCriticalServiceAfter`).
 
+### Etapa 4 — Kafka para el historial
+
+`db/init.sql` cambió (columna `evento_id`), así que la base se crea de nuevo. **Esto
+borra el historial anterior:**
+
+```bash
+docker compose down -v && docker compose up --build -d --remove-orphans
+```
+Esperado: 9 servicios en `Up`, incluido `kafka`.
+
+```bash
+docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+```
+Esperado: `historial.deduccion`, `historial.mundos`, `historial.tablas` (y `__consumer_offsets`).
+
+```bash
+docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic historial.tablas
+```
+Esperado: `PartitionCount: 3`.
+
+```bash
+for i in 1 2 3; do curl -s -o /dev/null -w "%{http_code}\n" -X POST localhost:8000/api/tablas/resolver -d "{\"formula\":\"p$i\"}"; done
+```
+Esperado: `501` tres veces (la lógica llega en la etapa 5, pero el intento sí se anota).
+
+```bash
+docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic historial.tablas --from-beginning --max-messages 3
+```
+Esperado: 3 eventos en JSON, cada uno con su `evento_id` y su `instancia`.
+
+```bash
+docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group historial-tablas
+```
+Esperado: 3 particiones y `LAG` en `0`: el consumidor ya guardó todo.
+
+```bash
+curl -s "localhost:8000/api/tablas/historial?limite=3"
+```
+Esperado: los 3 registros, leídos de Postgres.
+
+**Resiliencia:** con Postgres apagado, el usuario no se entera y Kafka guarda los eventos.
+
+```bash
+docker compose stop postgres
+for i in 4 5 6; do curl -s -o /dev/null -w "%{http_code}\n" -X POST localhost:8000/api/tablas/resolver -d "{\"formula\":\"q$i\"}"; done
+docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group historial-tablas
+```
+Esperado: `501` al instante, y el `LAG` sumando `3` entre las particiones.
+
+```bash
+docker compose start postgres && sleep 15 && curl -s "localhost:8000/api/tablas/historial?limite=10"
+```
+Esperado: `LAG` de nuevo en `0` y los registros `q4`, `q5` y `q6` en el historial.
+
+**Idempotencia:** reenviar un evento ya guardado no lo duplica.
+
+```bash
+curl -s "localhost:8000/api/tablas/historial?limite=200" | grep -o '"modulo"' | wc -l
+docker compose exec kafka sh -c "/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic historial.tablas --from-beginning --max-messages 1 | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic historial.tablas"
+sleep 3 && curl -s "localhost:8000/api/tablas/historial?limite=200" | grep -o '"modulo"' | wc -l
+```
+Esperado: el mismo número antes y después (`ON CONFLICT (evento_id) DO NOTHING`).
+
+**Límite conocido:** si Kafka está apagado, el usuario recibe su respuesta en ≤3 s, pero
+ese evento no se guarda (`docker compose logs tablas` muestra
+`No se pudo publicar el historial`). Al volver Kafka, el consumidor tarda unos segundos
+en reunirse al grupo y sigue guardando.
+
 ## Etapas
 
 | Etapa | Cambio                                                           | Estado    |
@@ -205,5 +278,5 @@ después de 1 minuto (`DeregisterCriticalServiceAfter`).
 | 1     | nginx como gateway HTTP (única puerta pública)                   | Listo     |
 | 2     | gRPC entre middleware y módulos; nginx como balanceador gRPC     | Listo     |
 | 3     | Consul para service discovery (registro, health check y borrado) | Listo     |
-| 4     | Kafka para el historial                                          | pendiente |
+| 4     | Kafka para el historial (un tópico por módulo, consumo idempotente) | Listo     |
 | 5     | Lógica de tablas de verdad y mundos posibles                     | pendiente |

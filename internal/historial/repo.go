@@ -11,7 +11,7 @@ import (
 // Fila del historial
 type Registro struct {
 	ID        int64           `json:"id"`
-	EventoID  string          `json:"evento_id.omitempty"`
+	EventoID  string          `json:"evento_id,omitempty"`
 	Modulo    string          `json:"modulo"`
 	Instancia string          `json:"instancia"`
 	Entrada   json.RawMessage `json:"entrada"`

@@ -12,6 +12,7 @@ x-modulo: &modulo
   environment: &modulo-env
     INSTANCIAS: "3"
     CONSUL_HTTP_ADDR: consul:8500
+    KAFKA_BROKER: kafka:9092
     DB_HOST: postgres 
     DB_PORT: "5432"
     DB_USER: ${DB_USER}
@@ -21,6 +22,8 @@ x-modulo: &modulo
     postgres:
       condition: service_healthy 
     consul:
+      condition: service_started
+    kafka:
       condition: service_started
 
 services:
@@ -64,6 +67,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093 
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1 
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       

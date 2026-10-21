@@ -12,7 +12,7 @@ import (
 	"logica/internal/kafkax"
 )
 
-// Historial del módullo
+// Historial del módulo
 func ConectarKafka(broker, modulo string, repo *Repo) (*kafka.Writer, error) {
 	topico := "historial." + modulo
 	grupo := "historial-" + modulo
@@ -22,7 +22,7 @@ func ConectarKafka(broker, modulo string, repo *Repo) (*kafka.Writer, error) {
 		return nil, err
 	}
 
-	// Guardar en postgres lo wue haya en el tópico con una gorutina
+	// Guardar en postgres lo que haya en el tópico con una gorutina
 	go func() {
 		for {
 			err := kafkax.Consumir(context.Background(), broker, topico, grupo, repo.GuardarEvento)

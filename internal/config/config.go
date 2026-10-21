@@ -87,6 +87,11 @@ func DireccionConsul(respaldo string) string {
 	return getEnv("CONSUL_HTTP_ADDR", respaldo)
 }
 
+// Dirección (host:puerto) del broker de Kafka
+func BrokerKafka(respaldo string) string {
+	return getEnv("KAFKA_BROKER", respaldo)
+}
+
 // Dirección gRPC a la que el middlware manda sus cosas
 func DestinoGRPC(respaldo string) string {
 	return getEnv("GRPC_DESTINO", respaldo)
