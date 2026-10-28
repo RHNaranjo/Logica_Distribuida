@@ -271,6 +271,36 @@ ese evento no se guarda (`docker compose logs tablas` muestra
 `No se pudo publicar el historial`). Al volver Kafka, el consumidor tarda unos segundos
 en reunirse al grupo y sigue guardando.
 
+### Etapa 5 — Lógica: tablas de verdad
+
+```bash
+go test ./internal/modulos/tablas/ -v
+```
+Esperado: `PASS` en `TestResolver` y `TestResolverErrores`.
+
+```bash
+curl -s -X POST localhost:8000/api/tablas/resolver -d '{"formula":"p -> q"}'
+```
+Esperado: `"clasificacion":"contingencia"`, `"variables":["p","q"]` y 4 renglones; el
+único falso es `[true,false]`.
+
+```bash
+curl -s -X POST localhost:8000/api/tablas/resolver -d '{"formula":"p | ~p"}'
+curl -s -X POST localhost:8000/api/tablas/resolver -d '{"formula":"p & ~p"}'
+```
+Esperado: `tautologia` y `contradiccion`.
+
+```bash
+curl -s -w " [%{http_code}]\n" -X POST localhost:8000/api/tablas/resolver -d '{"formula":"[]p"}'
+curl -s -w " [%{http_code}]\n" -X POST localhost:8000/api/tablas/resolver -d '{"formula":"a & b & c & d & e & f & g & h & i & j & k"}'
+```
+Esperado: `[400]` con el motivo (fórmula modal; más de 10 variables).
+
+```bash
+grpcurl -plaintext -H 'modulo: tablas' -d '{"formula": "p | ~p"}' localhost:9000 logica.Modulo/Resolver
+```
+Esperado: la misma tabla por gRPC, con `"clasificacion": "tautologia"`.
+
 ## Etapas
 
 | Etapa | Cambio                                                           | Estado    |
@@ -279,4 +309,4 @@ en reunirse al grupo y sigue guardando.
 | 2     | gRPC entre middleware y módulos; nginx como balanceador gRPC     | Listo     |
 | 3     | Consul para service discovery (registro, health check y borrado) | Listo     |
 | 4     | Kafka para el historial (un tópico por módulo, consumo idempotente) | Listo     |
-| 5     | Lógica de tablas de verdad y mundos posibles                     | pendiente |
+| 5     | Lógica de tablas de verdad y mundos posibles                     | en curso |

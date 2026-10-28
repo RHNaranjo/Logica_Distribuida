@@ -4,6 +4,7 @@ import { pedir, type Respuesta } from "../api";
 import type { Modulo } from "../modulos";
 import { teclados } from "../teclados"
 import { Teclado } from "./Teclado"
+import { TablaVerdad, type Tabla } from "./TablaVerdad";
 
 // arranca los campos con sus valores de ejemplo 
 function valoresIniciales(modulo: Modulo): Record<string, string> {
@@ -144,17 +145,22 @@ export function PanelModulo({ modulo }: { modulo: Modulo }) {
             <p className="mb-3 flex flex-wrap items-center gap-1 text-xs">
               {respuesta.recorrido.map((nodo, i) => (
                 <span key={`${nodo}-${i}`} className="flex items-center gap-1">
-                  {i > 0 && <span className="text-slate-400">→</span>}
-                  <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-slate-700">
+                  {i > 0 && <span className="text-red-600">→</span>}
+                  <span className="font-mono text-red-600">
                     {nodo}
                   </span>
                 </span>
               ))}
             </p>
 
-            <pre className="max-h-80 overflow-auto rounded bg-slate-900 p-3 font-mono text-xs text-slate-100">
-              {JSON.stringify(respuesta.datos, null, 2)}
-            </pre>
+            {/* Las tablas de verdad se dibujan; lo demás se muestra como JSON */}
+            {modulo.id === "tablas" && respuesta.ok ? (
+              <TablaVerdad tabla={(respuesta.datos as { resultado: Tabla }).resultado} />
+            ) : (
+              <pre className="max-h-80 overflow-auto rounded bg-slate-900 p-3 font-mono text-xs text-slate-100">
+                {JSON.stringify(respuesta.datos, null, 2)}
+              </pre>
+            )}
           </>
         )}
       </div>

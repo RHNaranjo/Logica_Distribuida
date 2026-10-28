@@ -2,6 +2,7 @@ package formula
 
 import (
 	"fmt"
+	"strings"
 )
 
 // El interprete es para las funciones que no tienen un caso concreto en Evaluar: ~, &, |, ->, <->
@@ -97,6 +98,7 @@ const MaxVariables = 10
 // Los renglones incluyen los valores de la tabla y el resultado
 type Renglon struct {
 	Valores   []bool `json:"valores"`
+	Parciales []bool `json:"parciales"` // valor de cada columna de Columnas
 	Resultado bool   `json:"resultado"`
 }
 
@@ -104,6 +106,7 @@ type Renglon struct {
 type Tabla struct {
 	Formula       string    `json:"formula"`
 	Variable      []string  `json:"variables"`
+	Columnas      []string  `json:"columnas"` // subfórmulas, de adentro hacia afuera
 	Renglones     []Renglon `json:"renglones"`
 	Clasificacion string    `json:"clasificacion"`
 }
@@ -125,6 +128,12 @@ func ConstruirTabla(f Formula) (Tabla, error) {
 		Formula:   Escribir(f),
 		Variable:  variables,
 		Renglones: make([]Renglon, 0, total),
+	}
+
+	// Sacar las subfórmulas que tendrán su propia columna (q -> r, luego p & (q -> r))
+	subs := subformulas(f, nil, make(map[string]bool))
+	for _, sub := range subs {
+		tabla.Columnas = append(tabla.Columnas, sinParentesis(Escribir(sub)))
 	}
 
 	verdaderos := 0
@@ -158,7 +167,13 @@ func ConstruirTabla(f Formula) (Tabla, error) {
 			verdaderos++
 		}
 
-		tabla.Renglones = append(tabla.Renglones, Renglon{Valores: valores, Resultado: resultado})
+		// Evaluar cada subfórmula con los mismos valores del renglón
+		parciales := make([]bool, len(subs))
+		for j, sub := range subs {
+			parciales[j], _ = Evaluar(sub, ConAsignacion(asignacion))
+		}
+
+		tabla.Renglones = append(tabla.Renglones, Renglon{Valores: valores, Parciales: parciales, Resultado: resultado})
 	}
 
 	// Esto servirá para lógica modal
@@ -172,4 +187,44 @@ func ConstruirTabla(f Formula) (Tabla, error) {
 	}
 
 	return tabla, nil
+}
+
+// Juntar las subfórmulas que no son variables, de adentro hacia afuera y sin repetir
+func subformulas(f Formula, lista []Formula, vistas map[string]bool) []Formula {
+	switch n := f.(type) {
+	case Variable:
+		return lista
+	case No:
+		lista = subformulas(n.Modificada, lista, vistas)
+	case Y:
+		lista = subformulas(n.Antecedente, lista, vistas)
+		lista = subformulas(n.Consequente, lista, vistas)
+	case O:
+		lista = subformulas(n.Antecedente, lista, vistas)
+		lista = subformulas(n.Consequente, lista, vistas)
+	case Condicional:
+		lista = subformulas(n.Antecedente, lista, vistas)
+		lista = subformulas(n.Consequente, lista, vistas)
+	case Bicondicional:
+		lista = subformulas(n.Antecedente, lista, vistas)
+		lista = subformulas(n.Consequente, lista, vistas)
+	}
+
+	// Agregar esta fórmula después de sus partes
+	texto := Escribir(f)
+	if !vistas[texto] {
+		vistas[texto] = true
+		lista = append(lista, f)
+	}
+
+	return lista
+}
+
+// Quitar el paréntesis de afuera para el encabezado: "(q -> r)" -> "q -> r"
+func sinParentesis(texto string) string {
+	if strings.HasPrefix(texto, "(") && strings.HasSuffix(texto, ")") {
+		return texto[1 : len(texto)-1]
+	}
+
+	return texto
 }
