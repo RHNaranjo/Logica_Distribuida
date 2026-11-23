@@ -1,0 +1,69 @@
+# Disco en caso de que muera el pod 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-datos
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      stirage: 1Gi
+--- 
+# Deployment 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres 
+  labels:
+    app: postgres 
+spec:
+  replicas: 1
+  # Apagar el pod viejo antes de crear el nuevo 
+  strategy:
+    type: Recreate 
+  selector:
+    matchLabels:
+      app: postgres 
+  template:
+    metadata:
+      labels:
+        app: postgres 
+    spec:
+      containers:
+        - name: postgres 
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            # Leer usuario y contraseña del Secret 
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secreto 
+                  key: DB_USER 
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secreto
+                  key: DB_PASSWORD 
+            - name: POSTGRES_DB 
+              value: logica
+          # Marcar el pod como listo sólo cuando Postgres acepta conexiones 
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER - $POSTGRES_DB"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: datos 
+              mountPath: /var/lib/postgresql/data 
+            - name: init 
+              mountPath: /docker-entrypoint-initdb.d 
+              readOnly: true 
+      volumes:
+        - name: datos 
+          PersistentVolumeClaim:
+            claimName: postgres-datos 
+        - name: init 
+          configMap:
+            name: postgres-init
