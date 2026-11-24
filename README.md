@@ -301,6 +301,80 @@ grpcurl -plaintext -H 'modulo: tablas' -d '{"formula": "p | ~p"}' localhost:9000
 ```
 Esperado: la misma tabla por gRPC, con `"clasificacion": "tautologia"`.
 
+### Etapa 6 — Kubernetes (minikube en una VM QEMU/KVM)
+
+La versión con docker compose y Consul quedó guardada en el tag `entrega-compose`
+(`git checkout entrega-compose` para volver a ella).
+
+Requisitos en Mac (Apple Silicon): `brew install qemu socket_vmnet minikube kubectl`, y
+`socket_vmnet` corriendo (`sudo brew services start socket_vmnet`). En Fedora se usa el
+driver KVM: `make cluster DRIVER=kvm2` (necesita `libvirt` y `qemu-kvm`).
+
+```bash
+make cluster      # minikube en una VM con 6 GB y 4 CPUs
+make desplegar    # Secret y ConfigMap desde .env y db/init.sql, y luego todo k8s/
+```
+
+Apagar y volver a prender el clúster conserva los datos de Postgres:
+
+```bash
+minikube stop
+minikube start
+```
+
+#### Paso 1 — Postgres y Kafka en el clúster
+
+Comprobar que el clúster es una VM:
+
+```bash
+minikube profile list
+minikube ssh -- uname -m
+```
+Esperado: driver `qemu2` (o `kvm2`) y `aarch64` (o `x86_64` en Fedora).
+
+Validar los manifiestos sin aplicarlos y esperar el despliegue:
+
+```bash
+kubectl apply -f k8s/ --dry-run=client
+kubectl rollout status deployment/postgres
+kubectl rollout status deployment/kafka
+```
+Esperado: `successfully rolled out` en ambos.
+
+```bash
+kubectl get deploy,rs,pods,svc,pvc
+```
+Esperado: 2 Deployments `1/1`, sus 2 ReplicaSets, 2 pods `Running` y el PVC `Bound`.
+
+```bash
+kubectl exec deploy/postgres -- sh -c 'psql -U $POSTGRES_USER -d logica -c "\dt"'
+```
+Esperado: la tabla `historial` (la creó `init.sql` desde el ConfigMap).
+
+```bash
+kubectl exec deploy/kafka -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --topic prueba --partitions 3
+kubectl exec deploy/kafka -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+```
+Esperado: `Created topic prueba.` y después `prueba`.
+
+DNS entre pods (un pod temporal llega a Postgres por el nombre del Service):
+
+```bash
+kubectl run cliente --rm -i --restart=Never --image=postgres:16-alpine --env=PGPASSWORD=<DB_PASSWORD del .env> -- psql -h postgres -U <DB_USER del .env> -d logica -c 'select count(*) from historial'
+```
+Esperado: `0`.
+
+Persistencia: insertar una fila, correr `kubectl delete pod -l app=postgres`, esperar el
+pod nuevo (otro nombre; lo crea el ReplicaSet) y comprobar que la fila sigue ahí.
+
+Prueba negativa: `kubectl delete secret postgres-secreto` y luego borrar el pod de
+Postgres deja el pod nuevo en `CreateContainerConfigError`; `make config` lo arregla solo.
+
+Limitaciones conocidas:
+- Kafka no tiene disco: al reiniciar el clúster se pierden los tópicos de prueba y los
+  mensajes pendientes. El historial importante vive en Postgres, que sí tiene PVC.
+- Los Secrets de Kubernetes solo están codificados en base64, no cifrados.
+
 ## Etapas
 
 | Etapa | Cambio                                                           | Estado    |
@@ -309,4 +383,5 @@ Esperado: la misma tabla por gRPC, con `"clasificacion": "tautologia"`.
 | 2     | gRPC entre middleware y módulos; nginx como balanceador gRPC     | Listo     |
 | 3     | Consul para service discovery (registro, health check y borrado) | Listo     |
 | 4     | Kafka para el historial (un tópico por módulo, consumo idempotente) | Listo     |
-| 5     | Lógica de tablas de verdad y mundos posibles                     | en curso |
+| 5     | Lógica de tablas de verdad, mundos posibles y deducción natural  | en curso  |
+| 6     | Kubernetes (minikube en QEMU), mTLS y observabilidad             | en curso  |

@@ -8,7 +8,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      stirage: 1Gi
+      storage: 1Gi
 --- 
 # Deployment 
 apiVersion: apps/v1
@@ -52,7 +52,7 @@ spec:
           # Marcar el pod como listo sólo cuando Postgres acepta conexiones 
           readinessProbe:
             exec:
-              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER - $POSTGRES_DB"]
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
             periodSeconds: 5
           volumeMounts:
             - name: datos 
@@ -62,7 +62,7 @@ spec:
               readOnly: true 
       volumes:
         - name: datos 
-          PersistentVolumeClaim:
+          persistentVolumeClaim:
             claimName: postgres-datos 
         - name: init 
           configMap:
