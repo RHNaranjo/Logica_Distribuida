@@ -41,5 +41,5 @@ COPY --from=constructor /bin/frontend /app/frontend
 # El frontend ya compilado, listo para servirse
 COPY --from=web /web/dist /app/web
 
-# El docker-compose.yml elige cuál correr con `command:`
+# El `command:` de cada Deployment elige cuál correr
 CMD ["/app/middleware"]

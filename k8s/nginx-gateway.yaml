@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-gateway-conf
+data:
+  nginx.conf: |
+    events {}
+
+    http {
+      upstream frontend {
+        server frontend:3000;
+      }
+
+      upstream middleware {
+        server middleware:8080;
+      }
+
+      server {
+        listen 8000;
+
+        # Avisar al servicio quién hizo la petición
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Mandar la API al middleware con la ruta completa
+        location /api/ {
+          proxy_pass http://middleware;
+
+          # Rendirse a los 3 s si el middleware no contesta
+          proxy_connect_timeout 3s;
+
+          # Poner a nginx al inicio del recorrido
+          proxy_hide_header X-Nodo;
+          add_header X-Nodo "nginx-gateway, $upstream_http_x_nodo" always;
+        }
+
+        # Mandar todo lo demás a la página
+        location / {
+          proxy_pass http://frontend;
+        }
+
+        # Responder que nginx está vivo
+        location = /salud {
+          return 200 "nginx-gateway vivo";
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-gateway
+  labels:
+    app: nginx-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-gateway
+  template:
+    metadata:
+      labels:
+        app: nginx-gateway
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 8000
+          # Poner el nginx.conf del ConfigMap encima del que trae la imagen
+          volumeMounts:
+            - name: conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          readinessProbe:
+            httpGet:
+              path: /salud
+              port: 8000
+            periodSeconds: 5
+      volumes:
+        - name: conf
+          configMap:
+            name: nginx-gateway-conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-gateway
+spec:
+  selector:
+    app: nginx-gateway
+  ports:
+    - port: 8000
+      targetPort: 8000

@@ -23,7 +23,10 @@ desplegar: config
 imagen:
 	minikube image build -t logica:local .
 
-# Recrear los pods de los módulos con una nueva imagen 
+# Recrear los pods que usan la imagen logica:local
 reiniciar:
-	kubectl rollout restart deployment/tablas deployment/mundos deployment/deduccion 
+	kubectl rollout restart deployment/tablas deployment/mundos deployment/deduccion deployment/middleware deployment/frontend
 
+# Abrir la página en http://localhost:8000 (se queda corriendo; Ctrl+C para cerrar)
+abrir:
+	kubectl port-forward svc/nginx-gateway 8000:8000

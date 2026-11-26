@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 
@@ -46,7 +47,11 @@ func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error 
 		}
 
 		// Crear el servidor con el interceptor de cada llamada
-		srv := grpc.NewServer(grpc.UnaryInterceptor(interceptor(nombre)))
+		// Cerrar cada conexión a los 30 s para que el cliente pregunte otra vez al DNS
+		srv := grpc.NewServer(
+			grpc.UnaryInterceptor(interceptor(nombre)),
+			grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionAge: 30 * time.Second}),
+		)
 
 		// Registrar el módulo, la salud y la reflexión para grpcurl
 		rpc.RegisterModuloServer(srv, nuevo(nombre))
