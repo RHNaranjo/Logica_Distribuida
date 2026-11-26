@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tablas
+  labes:
+    app: tablas
+spec:
+  # Tres pods
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tablas
+  template:
+    metadata:
+      labels:
+        app: tablas
+    spec:
+      containers:
+        - name: tablas
+          # Imagen dentro de minikube 
+          image: logica:local
+          imagePullPolicy: Never
+          command: ["/app/tablas"]
+          ports:
+            - containerPort: 9011
+          # DB_USER y DB_PASSWORD salen del secret 
+          envFrom:
+            - secretRef:
+                name: postgres-secreto
+          env:
+            # Una por pod 
+            - name: INSTANCIAS
+              value: "1"
+            - name: PUERTO_BASE
+              value: "9011"
+            # Usar el nombre del pod como nombre de la instancia 
+            - name: NOMBRE_INSTANCIA
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KAFKA_BROKER
+              value: kafka:9092
+            - name: DB_HOST
+              value: postgres
+            - name: DB_NAME
+              value: logica
+          # Recibir el tráfico sólo si el puerto gRPC está abierto 
+          readinessProbe:
+            tcpSocket:
+              port: 9011
+            periodSeconds: 5
+          # Reiniciar el contenedor si el puerto muerte 
+          livenessProbe:
+            tcpSocket:
+              port: 9011
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+# El DNS devuelve la IP de cada pod 
+apiVersion: v1
+kind: Service
+metadata:
+  name: tablas
+spec:
+  clusterIP: None
+  selector:
+    app: tablas
+  ports:
+    - port: 9011
+      targetPort: 9011

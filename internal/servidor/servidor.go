@@ -16,34 +16,28 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 
-	"logica/internal/consul"
 	"logica/internal/rpc"
 )
 
 type Opciones struct {
 	Modulo     string // mundos, tablas o deducción natural
+	Nombre     string // nombre de la instancia de k8s
 	Instancias int
 	PuertoBase int
-	Host       string
-	Consul     string // host:puerto
 }
 
-// Levantar N servidores gRPC, uno por gorutina. Se bloquea hasta que alguno de ellos se caiga
+// Levantar N servidores gRPC (uno por gorutina)
 func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error {
 	errores := make(chan error, op.Instancias)
 
-	var nombres []string
-
-	// Borrar las instancias si se sale por error o por apagar
-	defer func() {
-		for _, nombre := range nombres {
-			consul.Borrar(op.Consul, nombre)
-		}
-	}()
-
 	for i := 0; i < op.Instancias; i++ {
 		puerto := op.PuertoBase + i
-		nombre := fmt.Sprintf("%s-%d", op.Modulo, i)
+
+		// 1 vs muchas instancias
+		nombre := op.Nombre
+		if op.Instancias > 1 {
+			nombre = fmt.Sprintf("%s-%d", op.Nombre, i)
+		}
 
 		// Abrir el puerto de esta instancia
 		escucha, err := net.Listen("tcp", fmt.Sprintf(":%d", puerto))
@@ -54,7 +48,7 @@ func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error 
 		// Crear el servidor con el interceptor de cada llamada
 		srv := grpc.NewServer(grpc.UnaryInterceptor(interceptor(nombre)))
 
-		// Registrar el modulo, la salud y la reflexión para grpcurl
+		// Registrar el módulo, la salud y la reflexión para grpcurl
 		rpc.RegisterModuloServer(srv, nuevo(nombre))
 		healthpb.RegisterHealthServer(srv, health.NewServer())
 		reflection.Register(srv)
@@ -63,13 +57,9 @@ func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error 
 			log.Printf("[INFO] %s escuchando gRPC en :%d", nombre, puerto)
 			errores <- fmt.Errorf("la instancia %s se detuvo: %w", nombre, srv.Serve(escucha))
 		}()
-
-		// Darse de alta en Consul
-		nombres = append(nombres, nombre)
-		go consul.Registrar(op.Consul, consul.Servicio{ID: nombre, Nombre: op.Modulo, Host: op.Host, Puerto: puerto})
 	}
 
-	// Escuchar el apagado del docker stop
+	// Escuchar si se apaga el sistema
 	apagado := make(chan os.Signal, 1)
 	signal.Notify(apagado, syscall.SIGINT, syscall.SIGTERM)
 

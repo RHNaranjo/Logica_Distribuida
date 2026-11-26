@@ -33,10 +33,9 @@ func main() {
 
 	op := servidor.Opciones{
 		Modulo:     mundos.Nombre,
+		Nombre:     config.NombreInstancia(mundos.Nombre),
 		Instancias: config.NumInstancias(),
 		PuertoBase: config.PuertoBase(puertoPorOmision),
-		Host:       config.HostAnunciado("localhost"),
-		Consul:     config.DireccionConsul("localhost:8500"),
 	}
 
 	repo := historial.NuevoRepo(db)

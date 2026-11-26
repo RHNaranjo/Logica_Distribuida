@@ -77,9 +77,9 @@ func getEnvInt(clave string, respaldo int) int {
 	return n
 }
 
-// Nombre para que nginx y Consul alcancen la instancia
-func HostAnunciado(respaldo string) string {
-	return getEnv("HOST_ANUNCIO", respaldo)
+// Nombre de las instancias de k8s
+func NombreInstancia(modulo string) string {
+	return getEnv("NOMBRE_INSTANCIA", modulo)
 }
 
 // Dirección (host:puerto)
