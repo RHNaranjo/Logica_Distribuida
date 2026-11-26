@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mundos
+  labels:
+    app: mundos
+spec:
+  # Tres pods
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mundos
+  template:
+    metadata:
+      labels:
+        app: mundos
+    spec:
+      containers:
+        - name: mundos
+          # Imagen dentro de minikube 
+          image: logica:local
+          imagePullPolicy: Never
+          command: ["/app/mundos"]
+          ports:
+            - containerPort: 9001
+          # DB_USER y DB_PASSWORD salen del secret 
+          envFrom:
+            - secretRef:
+                name: postgres-secreto
+          env:
+            # Una por pod 
+            - name: INSTANCIAS
+              value: "1"
+            - name: PUERTO_BASE
+              value: "9001"
+            # Usar el nombre del pod como nombre de la instancia 
+            - name: NOMBRE_INSTANCIA
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KAFKA_BROKER
+              value: kafka:9092
+            - name: DB_HOST
+              value: postgres
+            - name: DB_NAME
+              value: logica
+          # Recibir el tráfico sólo si el puerto gRPC está abierto 
+          readinessProbe:
+            tcpSocket:
+              port: 9001
+            periodSeconds: 5
+          # Reiniciar el contenedor si el puerto muerte 
+          livenessProbe:
+            tcpSocket:
+              port: 9001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+# El DNS devuelve la IP de cada pod 
+apiVersion: v1
+kind: Service
+metadata:
+  name: mundos
+spec:
+  clusterIP: None
+  selector:
+    app: mundos
+  ports:
+    - port: 9001
+      targetPort: 9001

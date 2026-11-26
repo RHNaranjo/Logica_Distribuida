@@ -18,3 +18,12 @@ config:
 # Aplicar todos los archivos dentro de k8s/ y desplegar 
 desplegar: config 
 	kubectl apply -f k8s/
+
+# Construir la imagen en minikube 
+imagen:
+	minikube image build -t logica:local .
+
+# Recrear los pods de los módulos con una nueva imagen 
+reiniciar:
+	kubectl rollout restart deployment/tablas deployment/mundos deployment/deduccion 
+

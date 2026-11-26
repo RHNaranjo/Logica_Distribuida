@@ -375,6 +375,86 @@ Limitaciones conocidas:
   mensajes pendientes. El historial importante vive en Postgres, que sí tiene PVC.
 - Los Secrets de Kubernetes solo están codificados en base64, no cifrados.
 
+#### Paso 2 — Los tres módulos, 3 réplicas cada uno
+
+Cada módulo es un Deployment con `replicas: 3` (un ReplicaSet que mantiene 3 pods) y un
+Service headless. Un pod = una instancia; su nombre es el del pod (Downward API).
+Los módulos ya no se registran en Consul: el DNS del clúster los encuentra.
+
+Construir la imagen dentro de minikube y desplegar:
+
+```bash
+make imagen
+make desplegar
+```
+
+Después de cambiar código Go: `make imagen && make reiniciar`.
+
+```bash
+kubectl rollout status deployment/tablas
+kubectl get deploy,rs
+```
+Esperado: `successfully rolled out`; `tablas`, `mundos` y `deduccion` en `3/3`, con un
+ReplicaSet `3 3 3` cada uno. Repetir el `rollout status` con `mundos` y `deduccion`.
+
+```bash
+kubectl get endpoints tablas
+```
+Esperado: 3 direcciones `10.244.0.x:9011`. Si sale `<none>`, el `selector` del Service no
+coincide con los `labels` del pod.
+
+DNS headless (una IP por pod):
+
+```bash
+kubectl run dns --rm -i --restart=Never --image=busybox:1.36 -- nslookup tablas.default.svc.cluster.local
+```
+Esperado: tres `Address: 10.244.0.x`, las mismas del `get endpoints`.
+
+gRPC directo a un pod (en otra terminal: `kubectl port-forward deploy/tablas 9011:9011`):
+
+```bash
+grpcurl -plaintext -d '{"formula": "p -> q"}' localhost:9011 logica.Modulo/Resolver
+```
+Esperado: la tabla con `"clasificacion": "contingencia"`. `port-forward` va a un solo pod.
+
+Cada pod responde con su propio nombre (grpcurl dentro del clúster, contra cada IP):
+
+```bash
+for ip in $(kubectl get pods -l app=tablas -o jsonpath='{.items[*].status.podIP}'); do kubectl run grpc --rm -i --restart=Never --image=fullstorydev/grpcurl:latest -- -plaintext -v $ip:9011 grpc.health.v1.Health/Check | grep x-instancia; done
+```
+Esperado: tres `x-instancia: tablas-xxxxx-yyyyy`, cada uno con un pod distinto.
+
+Historial y consumidores de Kafka (uno por pod, una partición cada uno):
+
+```bash
+kubectl exec deploy/postgres -- sh -c 'psql -U $POSTGRES_USER -d logica -c "select modulo, instancia, entrada from historial"'
+kubectl exec deploy/kafka -- /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 --describe --group historial-tablas --members
+```
+Esperado: la fila guardada con el nombre del pod en `instancia`, y 3 miembros con
+`#PARTITIONS 1`.
+
+Self-healing: `kubectl delete pod <pod-de-tablas>` y el ReplicaSet crea otro en segundos
+(`kubectl get pods -l app=tablas -w`). Escalar: `kubectl scale deployment tablas
+--replicas=5` (y de vuelta a 3; `make desplegar` también lo regresa, el YAML manda).
+
+Prueba negativa: con Kafka apagado (`kubectl scale deployment kafka --replicas=0`), un pod
+nuevo de tablas queda `0/1`, fuera de `kubectl get endpoints tablas`, y la liveness lo
+reinicia a los ~50 s. Al restaurar Kafka (`--replicas=1`) pasa a `1/1` solo.
+
+Limpiar las filas de prueba antes de la demo:
+
+```bash
+kubectl exec deploy/postgres -- sh -c 'psql -U $POSTGRES_USER -d logica -c "delete from historial"'
+```
+
+Notas:
+- Desde este paso `docker compose` ya no funciona completo (los módulos no se registran en
+  Consul). La versión con compose está en el tag `entrega-compose`. `internal/consul/` se
+  borra en el paso 3, cuando el middleware deje de usarlo.
+- Tras `minikube start` los pods pueden verse `Unknown` o `0/1` hasta un minuto: es normal.
+  Si `minikube start` falla con `Unable to query local socket address` (QEMU), correr
+  `minikube stop` y luego `minikube start`.
+
 ## Etapas
 
 | Etapa | Cambio                                                           | Estado    |

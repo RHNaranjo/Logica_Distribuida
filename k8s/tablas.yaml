@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tablas
-  labes:
+  labels:
     app: tablas
 spec:
   # Tres pods

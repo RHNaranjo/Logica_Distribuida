@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deduccion
+  labels:
+    app: deduccion
+spec:
+  # Tres pods
+  replicas: 3
+  selector:
+    matchLabels:
+      app: deduccion
+  template:
+    metadata:
+      labels:
+        app: deduccion
+    spec:
+      containers:
+        - name: deduccion
+          # Imagen dentro de minikube 
+          image: logica:local
+          imagePullPolicy: Never
+          command: ["/app/deduccion"]
+          ports:
+            - containerPort: 9021
+          # DB_USER y DB_PASSWORD salen del secret 
+          envFrom:
+            - secretRef:
+                name: postgres-secreto
+          env:
+            # Una por pod 
+            - name: INSTANCIAS
+              value: "1"
+            - name: PUERTO_BASE
+              value: "9021"
+            # Usar el nombre del pod como nombre de la instancia 
+            - name: NOMBRE_INSTANCIA
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KAFKA_BROKER
+              value: kafka:9092
+            - name: DB_HOST
+              value: postgres
+            - name: DB_NAME
+              value: logica
+          # Recibir el tráfico sólo si el puerto gRPC está abierto 
+          readinessProbe:
+            tcpSocket:
+              port: 9021
+            periodSeconds: 5
+          # Reiniciar el contenedor si el puerto muerte 
+          livenessProbe:
+            tcpSocket:
+              port: 9021
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+# El DNS devuelve la IP de cada pod 
+apiVersion: v1
+kind: Service
+metadata:
+  name: deduccion
+spec:
+  clusterIP: None
+  selector:
+    app: deduccion
+  ports:
+    - port: 9021
+      targetPort: 9021
