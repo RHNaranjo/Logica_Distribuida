@@ -4,8 +4,10 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"slices"
 	"strconv"
@@ -14,13 +16,13 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"logica/internal/consul"
 	"logica/internal/rpc"
 	"logica/internal/web"
 )
@@ -30,6 +32,9 @@ const (
 	cuerpoMaximo = 1 << 20 // un MB
 )
 
+// Repartir las llamadas entre todas las IPs
+const balanceo = `{"loadBalancingConfig":[{"round_robin": {}}]}`
+
 // Lo que el frontend ve de cada instancia
 type Instancia struct {
 	Instancia string `json:"instancia"`
@@ -37,24 +42,37 @@ type Instancia struct {
 	Atendidas int    `json:"atendidas"`
 }
 
-// Traducir el HTTP del navegador a gRPC
+// Traducir el HTTP a gRPC
 type Controlador struct {
-	modulo rpc.ModuloClient
-	salud  healthpb.HealthClient
-	consul string // host:puerto de Consul
-
-	mu        sync.Mutex
-	atendidas map[string]map[string]int // "tablas" -> "tablas-1" -> 12
+	destinos   map[string]string           // "tablas" -> "tablas:9011"
+	conexiones map[string]*grpc.ClientConn // una por módulo
+	mu         sync.Mutex
+	atendidas  map[string]map[string]int //"tablas" -> "tablas-7cssas8asc-weerq8" -> 12
 }
 
-// Los dos clientes comparten la misma conexión con nginx
-func NuevoControlador(conexion *grpc.ClientConn, direccionConsul string) *Controlador {
-	return &Controlador{
-		modulo:    rpc.NewModuloClient(conexion),
-		salud:     healthpb.NewHealthClient(conexion),
-		consul:    direccionConsul,
-		atendidas: make(map[string]map[string]int),
+// Abrir una conexión gRPC por módulo, balanceada del lado del cliente
+func NuevoControlador(destinos map[string]string) (*Controlador, error) {
+	c := &Controlador{
+		destinos:   destinos,
+		conexiones: make(map[string]*grpc.ClientConn),
+		atendidas:  make(map[string]map[string]int),
 	}
+
+	for modulo, destino := range destinos {
+		// dns:/// pide todas las IPS
+		conexion, err := grpc.NewClient(
+			"dns:///"+destino,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithDefaultServiceConfig(balanceo),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("destino inválido para %s (%q): %w", modulo, destino, err)
+		}
+
+		c.conexiones[modulo] = conexion
+	}
+
+	return c, nil
 }
 
 func (c *Controlador) Rutas() *http.ServeMux {
@@ -81,11 +99,16 @@ func (c *Controlador) Salud(w http.ResponseWriter, r *http.Request) {
 func (c *Controlador) SaludModulo(w http.ResponseWriter, r *http.Request) {
 	modulo := r.PathValue("modulo")
 
-	ctx, cancel := llamada(r, modulo)
+	conexion, ok := c.conexion(w, modulo)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := llamada(r)
 	defer cancel()
 
 	var cabeceras metadata.MD
-	resp, err := c.salud.Check(ctx, &healthpb.HealthCheckRequest{}, grpc.Header(&cabeceras))
+	resp, err := healthpb.NewHealthClient(conexion).Check(ctx, &healthpb.HealthCheckRequest{}, grpc.Header(&cabeceras))
 	instancia := c.marcar(w, modulo, cabeceras)
 
 	if err != nil {
@@ -104,6 +127,11 @@ func (c *Controlador) SaludModulo(w http.ResponseWriter, r *http.Request) {
 func (c *Controlador) Resolver(w http.ResponseWriter, r *http.Request) {
 	modulo := r.PathValue("modulo")
 
+	conexion, ok := c.conexion(w, modulo)
+	if !ok {
+		return
+	}
+
 	// Leer el cuerpo con tope de memoria
 	cuerpo, err := io.ReadAll(http.MaxBytesReader(w, r.Body, cuerpoMaximo))
 	if err != nil {
@@ -118,11 +146,11 @@ func (c *Controlador) Resolver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := llamada(r, modulo)
+	ctx, cancel := llamada(r)
 	defer cancel()
 
 	var cabeceras metadata.MD
-	salida, err := c.modulo.Resolver(ctx, entrada, grpc.Header(&cabeceras))
+	salida, err := rpc.NewModuloClient(conexion).Resolver(ctx, entrada, grpc.Header(&cabeceras))
 	instancia := c.marcar(w, modulo, cabeceras)
 
 	if err != nil {
@@ -147,6 +175,11 @@ func (c *Controlador) Resolver(w http.ResponseWriter, r *http.Request) {
 func (c *Controlador) Historial(w http.ResponseWriter, r *http.Request) {
 	modulo := r.PathValue("modulo")
 
+	conexion, ok := c.conexion(w, modulo)
+	if !ok {
+		return
+	}
+
 	// Leer el límite si viene; 0 significa el que quiera
 	var limite int64
 	if crudo := r.URL.Query().Get("limite"); crudo != "" {
@@ -159,11 +192,11 @@ func (c *Controlador) Historial(w http.ResponseWriter, r *http.Request) {
 		limite = n
 	}
 
-	ctx, cancel := llamada(r, modulo)
+	ctx, cancel := llamada(r)
 	defer cancel()
 
 	var cabeceras metadata.MD
-	lista, err := c.modulo.Historial(ctx, &rpc.PeticionHistorial{Limite: int32(limite)}, grpc.Header(&cabeceras))
+	lista, err := rpc.NewModuloClient(conexion).Historial(ctx, &rpc.PeticionHistorial{Limite: int32(limite)}, grpc.Header(&cabeceras))
 	c.marcar(w, modulo, cabeceras)
 
 	if err != nil {
@@ -180,27 +213,28 @@ func (c *Controlador) Historial(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, http.StatusOK, json.RawMessage(crudo))
 }
 
-// Devolver cuántas peticiones ha atendido cada instancia
+// Preguntar a cada pod de cada módulo si está sano
 func (c *Controlador) Estado(w http.ResponseWriter, r *http.Request) {
-	registradas, err := consul.Estado(c.consul)
-	if err != nil {
-		log.Printf("[ERROR] No se pudo leer Consul: %v", err)
-		web.Fallo(w, http.StatusBadGateway, "no se pudo consultar Consul")
-		return
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	estado := make(map[string][]Instancia)
 
-	for modulo, instancias := range registradas {
-		for _, inst := range instancias {
-			estado[modulo] = append(estado[modulo], Instancia{
-				Instancia: inst.Nombre,
-				Sana:      inst.Sana,
-				Atendidas: c.atendidas[modulo][inst.Nombre],
-			})
+	for modulo, destino := range c.destinos {
+		// Sin pods, el módulo aparece con la lista vacía
+		estado[modulo] = []Instancia{}
+
+		host, puerto, err := net.SplitHostPort(destino)
+		if err != nil {
+			continue
+		}
+
+		// El Service headless responde con la IP de cada pod listo
+		ips, err := net.DefaultResolver.LookupHost(r.Context(), host)
+		if err != nil {
+			log.Printf("[AVISO] No se pudo resolver %s: %v", host, err)
+			continue
+		}
+
+		for _, ip := range ips {
+			estado[modulo] = append(estado[modulo], c.revisar(r.Context(), modulo, net.JoinHostPort(ip, puerto)))
 		}
 
 		// Ordenar por nombre
@@ -212,13 +246,48 @@ func (c *Controlador) Estado(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, http.StatusOK, estado)
 }
 
-// Copiar el recorrido y la instancia que respondió, y contarla
-func (c *Controlador) marcar(w http.ResponseWriter, modulo string, cabeceras metadata.MD) string {
-	// Agregar los nodos que se cruzaron (nginx-lb)
-	for _, nodo := range cabeceras.Get("x-nodo") {
-		w.Header().Add("X-Nodo", nodo)
+// Hacer el health check a un solo pod y leer su nombre
+func (c *Controlador) revisar(ctx context.Context, modulo, direccion string) Instancia {
+	// Si no contesta, por lo menos se ve su IP
+	inst := Instancia{Instancia: direccion}
+
+	// Conexión directa a esa IP, sin balanceo
+	conexion, err := grpc.NewClient(direccion, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return inst
+	}
+	defer conexion.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	var cabeceras metadata.MD
+	resp, err := healthpb.NewHealthClient(conexion).Check(ctx, &healthpb.HealthCheckRequest{}, grpc.Header(&cabeceras))
+
+	if nombres := cabeceras.Get("x-instancia"); len(nombres) > 0 {
+		inst.Instancia = nombres[0]
+	}
+	inst.Sana = err == nil && resp.GetStatus() == healthpb.HealthCheckResponse_SERVING
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	inst.Atendidas = c.atendidas[modulo][inst.Instancia]
+
+	return inst
+}
+
+// Buscar la conexión del módulo; responder 404 si no existe
+func (c *Controlador) conexion(w http.ResponseWriter, modulo string) (*grpc.ClientConn, bool) {
+	conexion, ok := c.conexiones[modulo]
+	if !ok {
+		web.Fallo(w, http.StatusNotFound, "no existe el módulo "+modulo)
 	}
 
+	return conexion, ok
+}
+
+// Copiar la instancia que respondió al recorrido, y contarla
+func (c *Controlador) marcar(w http.ResponseWriter, modulo string, cabeceras metadata.MD) string {
 	nombres := cabeceras.Get("x-instancia")
 	if len(nombres) == 0 {
 		return ""
@@ -239,12 +308,10 @@ func (c *Controlador) marcar(w http.ResponseWriter, modulo string, cabeceras met
 	return instancia
 }
 
-// Preparar la llamada: tiempo límite y headers para nginx y la instancia
-func llamada(r *http.Request, modulo string) (context.Context, context.CancelFunc) {
+// Preparar la llamada: tiempo límite y el id de petición para la instancia
+func llamada(r *http.Request) (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(r.Context(), tiempoLimite)
-
-	// nginx elige el grupo de instancias con "modulo"; la instancia anota "x-peticion"
-	ctx = metadata.AppendToOutgoingContext(ctx, "modulo", modulo, "x-peticion", r.Header.Get("X-Peticion"))
+	ctx = metadata.AppendToOutgoingContext(ctx, "x-peticion", r.Header.Get("X-Peticion"))
 
 	return ctx, cancel
 }
