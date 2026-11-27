@@ -91,3 +91,8 @@ func BrokerKafka(respaldo string) string {
 func DirectorioWeb(respaldo string) string {
 	return getEnv("DIRECTORIO_WEB", respaldo)
 }
+
+// Carpeta con tls.crt tls.key y ca.crt
+func DirectorioCerts(respaldo string) string {
+	return getEnv("DIRECTORIO_CERTS", respaldo)
+}
