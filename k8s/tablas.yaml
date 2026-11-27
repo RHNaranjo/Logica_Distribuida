@@ -63,7 +63,7 @@ spec:
       volumes:
         - name: certs
           secret:
-            secretName:tablas-tls
+            secretName: tablas-tls
 ---
 # El DNS devuelve la IP de cada pod 
 apiVersion: v1

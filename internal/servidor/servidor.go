@@ -11,13 +11,16 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 
 	"logica/internal/rpc"
+	"logica/internal/tlsx"
 )
 
 type Opciones struct {
@@ -30,6 +33,12 @@ type Opciones struct {
 // Levantar N servidores gRPC (uno por gorutina)
 func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error {
 	errores := make(chan error, op.Instancias)
+
+	// Leer el certificado
+	creds, err := tlsx.Servidor()
+	if err != nil {
+		return fmt.Errorf("no se pudo cargar el mTLS: %w", err)
+	}
 
 	for i := 0; i < op.Instancias; i++ {
 		puerto := op.PuertoBase + i
@@ -49,6 +58,7 @@ func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error 
 		// Crear el servidor con el interceptor de cada llamada
 		// Cerrar cada conexión a los 30 s para que el cliente pregunte otra vez al DNS
 		srv := grpc.NewServer(
+			grpc.Creds(creds),
 			grpc.UnaryInterceptor(interceptor(nombre)),
 			grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionAge: 30 * time.Second}),
 		)
@@ -90,10 +100,18 @@ func interceptor(nombre string) grpc.UnaryServerInterceptor {
 			peticion = md.Get("x-peticion")[0]
 		}
 
+		// Leer quién llamó según el nombre del certificado
+		cliente := "-"
+		if p, ok := peer.FromContext(ctx); ok {
+			if tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo); ok && len(tlsInfo.State.PeerCertificates) > 0 {
+				cliente = tlsInfo.State.PeerCertificates[0].Subject.CommonName
+			}
+		}
+
 		resp, err := handler(ctx, req)
 
-		// EJEMPLO: [tablas-0] p8 /logica.Modulo/Resolver (1.2ms)
-		log.Printf("[%s] %s %s (%s)", nombre, peticion, info.FullMethod, time.Since(inicio))
+		// EJEMPLO: [tablas-0] p8 /logica.Modulo/Resolver de middleware (1.2ms)
+		log.Printf("[%s] %s %s de %s (%s)", nombre, peticion, info.FullMethod, cliente, time.Since(inicio))
 
 		return resp, err
 	}

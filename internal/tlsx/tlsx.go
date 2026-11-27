@@ -24,7 +24,7 @@ func cargar() (tls.Certificate, *x509.CertPool, error) {
 	// Leer el certificado crudo
 	crudo, err := os.ReadFile(filepath.Join(dir, "ca.crt"))
 	if err != nil {
-		return tls.Certificate{}, nil, fmt.Errorf("no se pudo leer el certificado de autoridad %w", err)
+		return tls.Certificate{}, nil, fmt.Errorf("no se pudo leer el certificado de autoridad: %w", err)
 	}
 
 	// Parsear el certificado

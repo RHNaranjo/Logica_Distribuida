@@ -21,8 +21,8 @@ for s in tablas mundos deduccion middleware; do
   # Petición para que el CA lo apruebe
   openssl req -new -key $s.key -out $s.csr -subj "/CN=$s"
 
-  # Firmr la solicitud con vicencia de un año
-  openssl x509 -req -days 365 -in $s.csr -CA ca-crt -CAkey ca.key -CAcreateserial -out $s.crt \
+  # Firmar la solicitud con vigencia de un año
+  openssl x509 -req -days 365 -in $s.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out $s.crt \
     -extfile <(printf "subjectAltName=DNS:$s,DNS:$s.default.svc.cluster.local,DNS:localhost,IP:127.0.0.1")
 done
 

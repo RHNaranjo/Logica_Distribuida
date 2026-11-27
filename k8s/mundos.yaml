@@ -58,7 +58,7 @@ spec:
           # Montar el secret como archivos (igual que en tablas)
           volumeMounts:
             - name: certs 
-              mountPath: /etc/ssl/certs/grps
+              mountPath: /etc/ssl/certs/grpc
               readOnly: true 
       volumes:
         - name: certs

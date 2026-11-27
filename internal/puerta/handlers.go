@@ -16,7 +16,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -24,6 +24,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"logica/internal/rpc"
+	"logica/internal/tlsx"
 	"logica/internal/web"
 )
 
@@ -44,8 +45,9 @@ type Instancia struct {
 
 // Traducir el HTTP a gRPC
 type Controlador struct {
-	destinos   map[string]string           // "tablas" -> "tablas:9011"
-	conexiones map[string]*grpc.ClientConn // una por módulo
+	destinos   map[string]string                           // "tablas" -> "tablas:9011"
+	conexiones map[string]*grpc.ClientConn                 // una por módulo
+	creds      map[string]credentials.TransportCredentials // "tablas" -> mTLS con ServerName "tablas"
 	mu         sync.Mutex
 	atendidas  map[string]map[string]int //"tablas" -> "tablas-7cssas8asc-weerq8" -> 12
 }
@@ -55,14 +57,26 @@ func NuevoControlador(destinos map[string]string) (*Controlador, error) {
 	c := &Controlador{
 		destinos:   destinos,
 		conexiones: make(map[string]*grpc.ClientConn),
+		creds:      make(map[string]credentials.TransportCredentials),
 		atendidas:  make(map[string]map[string]int),
 	}
 
 	for modulo, destino := range destinos {
+		// El nombre del Service debe estar en el SAN del certificado del módulo
+		host, _, err := net.SplitHostPort(destino)
+		if err != nil {
+			return nil, fmt.Errorf("destino inválido para %s (%q): %w", modulo, destino, err)
+		}
+
+		creds, err := tlsx.Cliente(host)
+		if err != nil {
+			return nil, fmt.Errorf("no se pudo cargar el mTLS: %w", err)
+		}
+
 		// dns:/// pide todas las IPS
 		conexion, err := grpc.NewClient(
 			"dns:///"+destino,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithTransportCredentials(creds),
 			grpc.WithDefaultServiceConfig(balanceo),
 		)
 		if err != nil {
@@ -70,6 +84,7 @@ func NuevoControlador(destinos map[string]string) (*Controlador, error) {
 		}
 
 		c.conexiones[modulo] = conexion
+		c.creds[modulo] = creds
 	}
 
 	return c, nil
@@ -251,8 +266,8 @@ func (c *Controlador) revisar(ctx context.Context, modulo, direccion string) Ins
 	// Si no contesta, por lo menos se ve su IP
 	inst := Instancia{Instancia: direccion}
 
-	// Conexión directa a esa IP, sin balanceo
-	conexion, err := grpc.NewClient(direccion, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// Conexión directa a esa IP, sin balanceo, pero con el ServerName del módulo
+	conexion, err := grpc.NewClient(direccion, grpc.WithTransportCredentials(c.creds[modulo]))
 	if err != nil {
 		return inst
 	}
