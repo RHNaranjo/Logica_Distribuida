@@ -55,6 +55,15 @@ spec:
               port: 9011
             initialDelaySeconds: 30
             periodSeconds: 10
+          # Montar el secret como archivos tls.crt, tls.key y ca.crt 
+          volumeMounts: 
+            - name: certs 
+              mountPath: /etc/ssl/certs/grpc
+              readOnly: true
+      volumes:
+        - name: certs
+          secret:
+            secretName:tablas-tls
 ---
 # El DNS devuelve la IP de cada pod 
 apiVersion: v1

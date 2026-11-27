@@ -55,6 +55,15 @@ spec:
               port: 9021
             initialDelaySeconds: 30
             periodSeconds: 10
+          # Montar el secret
+          volumeMounts:
+            - name: certs 
+              mountPath: /etc/ssl/certs/grpc 
+              readOnly: true 
+      volumes:
+        - name: certs 
+          secret: 
+            secretName: deduccion-tls
 ---
 # El DNS devuelve la IP de cada pod 
 apiVersion: v1

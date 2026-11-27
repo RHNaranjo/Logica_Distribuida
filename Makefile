@@ -15,8 +15,22 @@ config:
 	kubectl create secret generic postgres-secreto --from-env-file=.env --dry-run=client -o yaml | kubectl apply -f -
 	kubectl create configmap postgres-init --from-file=db/init.sql --dry-run=client -o yaml | kubectl apply -f -
 
-# Aplicar todos los archivos dentro de k8s/ y desplegar 
-desplegar: config 
+# Generar los certificados en certs/ usando certs.sh
+certificados:
+	./certs.sh
+
+# Crear o actualizar un Secret con el certificado de cada servicio
+secretos:
+	for s in tablas mundos deduccion middleware; do \
+		kubectl create secret generic $$s-tls \
+			--from-file=tls.crt=certs/$$s.crt \
+			--from-file=tls.key=certs/$$s.key \
+			--from-file=ca.crt=certs/ca.crt \
+			--dry-run=client -o yaml | kubectl apply -f - ; \
+	done
+
+# Aplicar todos los archivos dentro de k8s/ para desplegar 
+desplegar: config secretos
 	kubectl apply -f k8s/
 
 # Construir la imagen en minikube 

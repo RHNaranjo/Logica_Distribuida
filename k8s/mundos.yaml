@@ -55,6 +55,15 @@ spec:
               port: 9001
             initialDelaySeconds: 30
             periodSeconds: 10
+          # Montar el secret como archivos (igual que en tablas)
+          volumeMounts:
+            - name: certs 
+              mountPath: /etc/ssl/certs/grps
+              readOnly: true 
+      volumes:
+        - name: certs
+          secret:
+            secretName: mundos-tls
 ---
 # El DNS devuelve la IP de cada pod 
 apiVersion: v1

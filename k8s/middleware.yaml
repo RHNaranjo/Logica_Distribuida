@@ -29,6 +29,15 @@ spec:
               path: /salud
               port: 8080
             periodSeconds: 5
+          # Certificado de cliente para poder hablar con los módulos
+          volumeMounts:
+            - name: certs
+              mountPath: /etc/ssl/certs/grpc
+              readOnly: true 
+      volumes:
+        - name: certs 
+          secret: 
+            secretName: middleware-tls
 ---
 # nginx habla por HTTP, no necesita ver los pods 
 apiVersion: v1
