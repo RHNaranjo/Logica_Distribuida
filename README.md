@@ -5,32 +5,34 @@ Este proyecto incluye tablas de verdad, mundos posibles y deducción natural
 ## Arquitectura
 
 ```
-Navegador ──HTTP :8000──▶ nginx-gateway
-                           ├─ /      ──▶ frontend (:3000)
-                           └─ /api/  ──▶ middleware (:8080) ──▶ Consul (:8500)
-                                              │ gRPC               ▲  registro y salud
-                                              ▼                    │
-                          nginx-gateway :9000 (balanceador gRPC)   │
-                                  ├─▶ tablas    ×3 (:9011-9013) ───┤
-                                  ├─▶ mundos    ×3 (:9001-9003) ───┤
-                                  └─▶ deduccion ×3 (:9021-9023) ───┘
-                                       │ publican el historial
-                                       ▼
-                                  kafka :9092 (historial.<módulo>, 3 particiones)
-                                       │ consumen (grupo historial-<módulo>)
-                                       ▼
-                                  postgres (:5432)
+Navegador ──:8000 (make abrir = port-forward)──▶ nginx-gateway
+                                                  ├─ /      ──▶ frontend (:3000)
+                                                  └─ /api/  ──▶ middleware (:8080)
+                                                                  │ gRPC, round-robin por DNS headless
+                      ┌───────────────────────────────────────────┼───────────────────────────┐
+                      ▼                                           ▼                           ▼
+             tablas ×3 pods (:9011)                     mundos ×3 pods (:9001)    deduccion ×3 pods (:9021)
+                      └──────────────────────── publican el historial ────────────────────────┘
+                                                                  ▼
+                                          kafka :9092 (historial.<módulo>, 3 particiones)
+                                                                  │ consumen (grupo historial-<módulo>)
+                                                                  ▼
+                                                           postgres (:5432)
 ```
 
-| Servicio                        | Qué hace                                                                                                                                                                                                           |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `nginx-gateway`                 | En `:8000` manda `/api/` al middleware y todo lo demás al frontend. En `:9000` reparte las llamadas gRPC entre las instancias sanas que Consul le indica (consul-template regenera su configuración y lo recarga). |
-| `consul`                        | Service discovery: las instancias se registran y se borran solas, y Consul les hace health check gRPC cada 5 s. Página en `:8500/ui`.                                                                              |
-| `frontend`                      | Sirve la página (React + Vite).                                                                                                                                                                                    |
-| `middleware`                    | Pone un id a cada petición (`X-Peticion`), registra el log y traduce el HTTP del navegador a gRPC.                                                                                                                 |
-| `tablas`, `mundos`, `deduccion` | Un contenedor por módulo, 3 instancias c/u (servidores gRPC). Publican cada resolución en su tópico de Kafka y la consumen para guardarla en Postgres.                                                                                                                                                      |
-| `kafka`                         | Cola de mensajes (`apache/kafka:3.8.0`, KRaft). Un tópico por módulo con 3 particiones. El historial se escribe de forma asíncrona. |
-| `postgres`                      | Base única `logica`, compartida por las 9 instancias.                                                                                                                                                              |
+Todo corre en minikube (una VM QEMU/KVM). Cada módulo es un Deployment con 3 réplicas.
+
+| Componente                      | Qué hace                                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `nginx-gateway`                 | Única puerta: `/api/` al middleware y todo lo demás al frontend. Su `nginx.conf` vive en un ConfigMap.    |
+| `frontend`                      | Sirve la página (React + Vite).                                                                           |
+| `middleware`                    | Pone un id a cada petición (`X-Peticion`), registra el log y traduce HTTP a gRPC, balanceando entre pods. |
+| `tablas`, `mundos`, `deduccion` | 3 pods c/u (servidores gRPC). Publican cada resolución en Kafka y la consumen para guardarla en Postgres. |
+| `kafka`                         | Cola de mensajes (`apache/kafka:3.8.0`, KRaft). Un tópico por módulo con 3 particiones.                   |
+| `postgres`                      | Base única `logica`, con PVC.                                                                             |
+
+Service discovery: el DNS de Kubernetes. Cada módulo tiene un Service headless que resuelve a
+las IPs de sus pods listos; el middleware balancea entre ellas del lado del cliente.
 
 ## Contrato gRPC
 
@@ -45,7 +47,10 @@ service Modulo {
 
 Además, cada instancia expone la salud estándar (`grpc.health.v1.Health`) y la reflexión de gRPC, para que `grpcurl` descubra los servicios sin el `.proto`.
 
-nginx elige el módulo con el header `modulo` de cada llamada. La configuración de gRPC no viene del repositorio de la clase: se basa en la documentación oficial de nginx (`ngx_http_grpc_module`) y de gRPC-Go.
+El middleware abre una conexión `dns:///<módulo>:<puerto>` por módulo con la política
+`round_robin`, y los módulos cierran cada conexión a los 30 s (`MaxConnectionAge`) para que
+el cliente vuelva a resolver el DNS y vea los pods nuevos. Esto no viene del repositorio de
+la clase: se basa en la documentación oficial de gRPC-Go.
 
 Para regenerar `internal/rpc/` después de cambiar el `.proto`:
 
@@ -53,25 +58,28 @@ Para regenerar `internal/rpc/` después de cambiar el `.proto`:
 protoc --go_out=. --go_opt=module=logica --go-grpc_out=. --go-grpc_opt=module=logica proto/modulo.proto
 ```
 
-## Cómo correrlo (Fedora para Max y Docker para todos)
+## Cómo correrlo
 
-Con Fedora nuevo:
-
-```bash
-bash instalar.sh
-```
-
-Con Docker ya instalado:
+Requisitos en Mac: `brew install qemu socket_vmnet minikube kubectl` y
+`sudo brew services start socket_vmnet`. En Fedora: `libvirt` y `qemu-kvm`, y
+`make cluster DRIVER=kvm2`.
 
 ```bash
-docker compose up --build -d
+make cluster      # la primera vez
+make imagen       # construir la imagen dentro de minikube
+make desplegar
+make abrir        # se queda corriendo
 ```
 
-Abrir `http://localhost:8000`. La pestaña **Inicio** muestra las instancias que Consul
-tiene registradas, su salud y cuántas peticiones ha atendido cada una. La página de
-Consul está en `http://localhost:8500/ui`.
+Abrir `http://localhost:8000`. La pestaña **Inicio** muestra los pods de cada módulo, su
+salud y cuántas peticiones ha atendido cada uno.
+
+`instalar.sh` todavía usa docker compose; se actualiza al final de la etapa 6.
 
 ## Pruebas
+
+Las etapas 1 a 4 se probaron con docker compose y Consul; esa versión está en el tag
+`entrega-compose`.
 
 ### Etapa 1 — nginx como gateway
 
@@ -312,6 +320,7 @@ driver KVM: `make cluster DRIVER=kvm2` (necesita `libvirt` y `qemu-kvm`).
 
 ```bash
 make cluster      # minikube en una VM con 6 GB y 4 CPUs
+make imagen       # imagen logica:local dentro de la VM (desde el paso 2)
 make desplegar    # Secret y ConfigMap desde .env y db/init.sql, y luego todo k8s/
 ```
 
@@ -449,11 +458,86 @@ kubectl exec deploy/postgres -- sh -c 'psql -U $POSTGRES_USER -d logica -c "dele
 
 Notas:
 - Desde este paso `docker compose` ya no funciona completo (los módulos no se registran en
-  Consul). La versión con compose está en el tag `entrega-compose`. `internal/consul/` se
-  borra en el paso 3, cuando el middleware deje de usarlo.
+  Consul). La versión con compose está en el tag `entrega-compose`.
 - Tras `minikube start` los pods pueden verse `Unknown` o `0/1` hasta un minuto: es normal.
   Si `minikube start` falla con `Unable to query local socket address` (QEMU), correr
   `minikube stop` y luego `minikube start`.
+
+#### Paso 3 — Middleware, frontend y gateway en el clúster
+
+El sistema completo corre en minikube. Se borraron `docker-compose.yml`, `internal/consul/`
+y la imagen propia de nginx (su `nginx.conf` pasó a un ConfigMap).
+
+```bash
+make imagen
+make desplegar
+make reiniciar
+make abrir
+```
+
+Esperado: en `http://localhost:8000` el panel muestra `9/9 instancias sanas` y el recorrido
+de cada respuesta es `nginx-gateway → middleware → <pod>`.
+
+Revisar sin cambiar nada:
+
+```bash
+kubectl get deploy,pods,svc
+kubectl logs deploy/middleware --tail=5
+```
+Esperado: `middleware`, `frontend` y `nginx-gateway` en `1/1`; los módulos en `3/3`;
+`tablas`, `mundos` y `deduccion` con `CLUSTER-IP` en `None` (headless).
+
+Rotación entre pods (balanceo del lado del cliente), en otra terminal:
+
+```bash
+for i in 1 2 3 4 5 6; do curl -si localhost:8000/api/tablas/salud | grep -i "^x-instancia"; done
+```
+Esperado: tres pods distintos que se repiten en orden.
+
+Escalar:
+
+```bash
+kubectl scale deployment tablas --replicas=5
+```
+Esperado: el panel muestra los 5 pods y el tráfico llega a los nuevos en unos 30 s
+(`MaxConnectionAge`). Regresar con `--replicas=3`.
+
+Self-healing sin errores. Con este ciclo corriendo, borrar un pod desde otra terminal
+(`kubectl delete pod <pod-de-tablas>`):
+
+```bash
+for i in $(seq 60); do curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/api/tablas/salud; sleep 0.5; done | sort | uniq -c
+```
+Esperado: `60 200`.
+
+Pruebas negativas:
+
+```bash
+curl -s -w " [%{http_code}]\n" localhost:8000/api/nada/salud
+```
+Esperado: `[404]` con `no existe el módulo nada`.
+
+```bash
+kubectl scale deployment tablas --replicas=0
+curl -s -w " [%{http_code}]\n" -X POST localhost:8000/api/tablas/resolver -d '{"formula":"p"}'
+kubectl scale deployment tablas --replicas=3
+```
+Esperado: `[503]` y la columna de `tablas` vacía en el panel; los otros módulos siguen. Al
+volver a 3 tarda unos 15 s en responder `200`.
+
+```bash
+kubectl scale deployment middleware --replicas=0
+curl -s -o /dev/null -w "%{http_code} en %{time_total}s\n" localhost:8000/api/estado
+kubectl scale deployment middleware --replicas=1
+```
+Esperado: `504` en unos 3 s (`proxy_connect_timeout`) y la página sigue cargando.
+
+Notas:
+- Si cambias el `nginx.conf` del ConfigMap: `kubectl apply -f k8s/nginx-gateway.yaml` y
+  `kubectl rollout restart deployment/nginx-gateway` (con `subPath`, nginx no ve el cambio solo).
+- Si `make abrir` dice `address already in use`, algo más usa el puerto 8000 (por ejemplo,
+  contenedores viejos de docker compose: `docker ps`).
+- El middleware tiene una sola réplica: guarda en memoria cuántas peticiones atendió cada pod.
 
 ## Etapas
 
