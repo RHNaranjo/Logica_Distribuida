@@ -11,7 +11,6 @@ export type Respuesta<T> = {
 
 export type Instancia = {
   instancia: string;
-  url: string;
   sana: boolean;
   atendidas: number;
 }
@@ -45,7 +44,7 @@ export async function pedir<T>(ruta: string, cuerpo?: unknown): Promise<Respuest
     // Se queda en texto plano al no tener formato JSON 
   }
 
-  // X-Nodo viene repetido (nginx-gateway, middleware, nginx-lb, instancia)
+  // X-Nodo viene repetido (nginx-gateway, middleware, instancia)
   // La API de Headers une los valores repetidos con comas 
   const recorrido = (resp.headers.get("X-Nodo") ?? "")
     .split(",")

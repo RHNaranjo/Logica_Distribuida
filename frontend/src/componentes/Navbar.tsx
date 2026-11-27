@@ -16,7 +16,7 @@ export function Navbar({ secciones, activa, onCambiar }: Props) {
         <div className="py-4">
           <h1 className="text-lg font-semibold">Lógica Distribuida</h1>
           <p className="text-sm text-slate-500">
-            Con: 1 MW, 1 LB y 3 instancias para 3 backends.
+            Con: 1 gateway, 1 middleware, 3 pods por módulo y muy pocas horas de sueño.
           </p>
         </div>
 

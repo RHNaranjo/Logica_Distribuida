@@ -63,7 +63,7 @@ export function PanelEstado() {
       )}
 
       {!error && total === 0 && (
-        <p className="text-sm text-slate-500">Consul no tiene ninguna instancia registrada aún.</p>
+        <p className="text-sm text-slate-500">No hay ningún pod registrado aún.</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">
