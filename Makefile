@@ -41,6 +41,10 @@ imagen:
 reiniciar:
 	kubectl rollout restart deployment/tablas deployment/mundos deployment/deduccion deployment/middleware deployment/frontend
 
-# Abrir la página en http://localhost:8000 (se queda corriendo; Ctrl+C para cerrar)
+# Abrir grafana en localhost:3000
+grafana:
+	kubectl port-forward svc/observabilidad 3000:3000
+
+# Abrir la página en localhost:8000
 abrir:
 	kubectl port-forward svc/nginx-gateway 8000:8000

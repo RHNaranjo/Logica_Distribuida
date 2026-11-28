@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observabilidad
+  labels:
+    app: observabilidad
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: observabilidad
+  template:
+    metadata:
+      labels:
+        app: observabilidad
+    spec:
+      containers:
+        - name: observabilidad
+          # Open Telemetry, Tempo, Prometheus, Loki y Grafana en sólo un contenedor
+          image: grafana/otel-lgtm:0.41.2
+          ports:
+            - containerPort: 3000 # Grafana
+            - containerPort: 4317 # OTLP a través de gRPC
+          # La imagen crea /tmp/ready al arrancar
+          readinessProbe:
+            # El comando se ejecuta dentro del contenedor 
+            exec:
+              command: ["cat", "/tmp/ready"]
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: observabilidad
+spec:
+  selector:
+    app: observabilidad
+  ports:
+    - name: grafana
+      port: 3000
+      targetPort: 3000
+    - name: otlp
+      port: 4317
+      targetPort: 4317

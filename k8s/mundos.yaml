@@ -44,6 +44,9 @@ spec:
               value: postgres
             - name: DB_NAME
               value: logica
+            # Mandar traces al colector 
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://observabilidad:4317
           # Recibir el tráfico sólo si el puerto gRPC está abierto 
           readinessProbe:
             tcpSocket:

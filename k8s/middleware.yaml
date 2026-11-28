@@ -23,6 +23,10 @@ spec:
           command: ["/app/middleware"]
           ports:
             - containerPort: 8080
+          env: 
+            # Mandar las traces al collector 
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://observabilidad:4317
           # Recibir tráfico sólo cuando /salud contesta 200
           readinessProbe:
             httpGet:
