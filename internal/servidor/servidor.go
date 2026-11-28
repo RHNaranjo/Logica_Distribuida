@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
@@ -59,6 +61,8 @@ func Arrancar(op Opciones, nuevo func(instancia string) rpc.ModuloServer) error 
 		// Cerrar cada conexión a los 30 s para que el cliente pregunte otra vez al DNS
 		srv := grpc.NewServer(
 			grpc.Creds(creds),
+			// Crear un span por llamada, menos en los health checks
+			grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithFilter(filters.Not(filters.HealthCheck())))),
 			grpc.UnaryInterceptor(interceptor(nombre)),
 			grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionAge: 30 * time.Second}),
 		)

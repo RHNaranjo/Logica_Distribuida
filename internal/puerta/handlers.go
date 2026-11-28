@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -78,6 +80,8 @@ func NuevoControlador(destinos map[string]string) (*Controlador, error) {
 			"dns:///"+destino,
 			grpc.WithTransportCredentials(creds),
 			grpc.WithDefaultServiceConfig(balanceo),
+			// Crear el span de la llamada y mandar el traceparent
+			grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithFilter(filters.Not(filters.HealthCheck())))),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("destino inválido para %s (%q): %w", modulo, destino, err)

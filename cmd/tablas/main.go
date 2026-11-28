@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"logica/internal/historial"
 	"logica/internal/modulos"
 	"logica/internal/modulos/tablas"
+	"logica/internal/observabilidad"
 	"logica/internal/rpc"
 	"logica/internal/servidor"
 )
@@ -17,6 +19,13 @@ import (
 const puertoPorOmision = 9011
 
 func main() {
+	// Arrancar las trazas antes que todo lo demás
+	apagar, err := observabilidad.Iniciar(context.Background(), tablas.Nombre, config.NombreInstancia(tablas.Nombre))
+	if err != nil {
+		log.Fatalf("[ERROR] %v", err)
+	}
+	defer apagar(context.Background())
+
 	dsn, err := config.DSN()
 	if err != nil {
 		log.Fatalf("[ERROR] Configuración inválida de la DB %v", err)
