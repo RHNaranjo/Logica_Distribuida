@@ -24,7 +24,7 @@ spec:
           ports:
             - containerPort: 8080
           env: 
-            # Mandar las traces al collector 
+            # Mandar las trazas al colector 
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://observabilidad:4317
           # Recibir tráfico sólo cuando /salud contesta 200

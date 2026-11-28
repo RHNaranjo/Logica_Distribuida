@@ -12,7 +12,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// Configurar las trazas del proceso y regresar
+// Configurar las trazas del proceso y regresar la función que las apaga
 // El destino sale de OTEL_EXPORTER_OTLP_ENDPOINT
 func Iniciar(ctx context.Context, servicio, instancia string) (func(context.Context) error, error) {
 	// Mandar los spans al colector por OTLP sobre gRPC

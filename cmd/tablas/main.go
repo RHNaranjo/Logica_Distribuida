@@ -33,7 +33,7 @@ func main() {
 
 	db, err := basededatos.Abrir(dsn, 10, 2*time.Second)
 	if err != nil {
-		log.Fatalf("[ERROR] No se logró establecer la conexión con POstgres: %v", err)
+		log.Fatalf("[ERROR] No se logró establecer la conexión con Postgres: %v", err)
 	}
 	defer db.Close()
 
